@@ -6,6 +6,7 @@ export 'screens/dashboard_screen.dart';
 export 'screens/inventory_screen.dart';
 export 'screens/login_screen.dart';
 export 'screens/record_sale_screen.dart';
+export 'screens/stock_history_screen.dart';
 
 void main() {
   runApp(const Sari2App());

@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sari2_app/main.dart';
 import 'package:sari2_app/data/store_repository.dart';
 import 'package:sari2_app/models/sale.dart';
+import 'package:sari2_app/models/stock_movement.dart';
 
 void main() {
   testWidgets('shows the login form', (WidgetTester tester) async {
@@ -149,6 +150,51 @@ void main() {
     expect(repository.sales, isEmpty);
   });
 
+  test('records stock adjustments in movement history', () {
+    final repository = StoreRepository();
+    final product = repository.products.first;
+
+    expect(
+      repository.adjustStock(
+        product: product,
+        quantity: 5,
+        type: StockMovementType.stockIn,
+        reason: 'Restock',
+      ),
+      isNull,
+    );
+    expect(repository.products.first.stock, 23);
+    expect(repository.stockMovements.single.quantity, 5);
+
+    final updatedProduct = repository.products.first;
+    expect(
+      repository.adjustStock(
+        product: updatedProduct,
+        quantity: 2,
+        type: StockMovementType.damaged,
+        reason: 'damaged',
+      ),
+      isNull,
+    );
+    expect(repository.products.first.stock, 21);
+    expect(repository.stockMovements, hasLength(2));
+  });
+
+  test('rejects stock removal beyond current quantity', () {
+    final repository = StoreRepository();
+    final product = repository.products.first;
+
+    final error = repository.adjustStock(
+      product: product,
+      quantity: product.stock + 1,
+      type: StockMovementType.lost,
+      reason: 'lost',
+    );
+
+    expect(error, contains('in stock'));
+    expect(repository.stockMovements, isEmpty);
+  });
+
   testWidgets('opens inventory from the dashboard', (
     WidgetTester tester,
   ) async {
@@ -192,5 +238,26 @@ void main() {
 
     expect(find.text('Coke'), findsOneWidget);
     expect(find.text('20 in stock'), findsOneWidget);
+  });
+
+  testWidgets('opens stock history from inventory', (
+    WidgetTester tester,
+  ) async {
+    final repository = StoreRepository();
+    repository.adjustStock(
+      product: repository.products.first,
+      quantity: 2,
+      type: StockMovementType.stockIn,
+      reason: 'Restock',
+    );
+    await tester.pumpWidget(
+      MaterialApp(home: InventoryScreen(repository: repository)),
+    );
+
+    await tester.tap(find.byTooltip('Stock history'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Stock history'), findsOneWidget);
+    expect(find.text('Stock in: Restock'), findsOneWidget);
   });
 }

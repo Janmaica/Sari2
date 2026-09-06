@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/product.dart';
 import '../models/sale.dart';
+import '../models/stock_movement.dart';
 
 class StoreRepository extends ChangeNotifier {
   StoreRepository();
@@ -36,9 +37,11 @@ class StoreRepository extends ChangeNotifier {
   ];
 
   final List<Sale> _sales = [];
+  final List<StockMovement> _stockMovements = [];
 
   List<Product> get products => List.unmodifiable(_products);
   List<Sale> get sales => List.unmodifiable(_sales);
+  List<StockMovement> get stockMovements => List.unmodifiable(_stockMovements);
 
   double get todaySalesTotal =>
       _sales.fold(0, (total, sale) => total + sale.total);
@@ -99,13 +102,24 @@ class StoreRepository extends ChangeNotifier {
     final error = validateTransaction(items);
     if (error != null) return error;
 
+    final remainingStock = <String, int>{
+      for (final product in _products) product.id: product.stock,
+    };
+    for (final item in items) {
+      final remaining = remainingStock[item.product.id] ?? 0;
+      if (item.quantity > remaining) {
+        return '${item.product.name} has only $remaining in stock';
+      }
+      remainingStock[item.product.id] = remaining - item.quantity.toInt();
+    }
+
     final now = DateTime.now();
     for (final item in items) {
       final index = _products.indexWhere(
         (product) => product.id == item.product.id,
       );
       _products[index] = item.product.copyWith(
-        stock: item.product.stock - item.quantity.toInt(),
+        stock: remainingStock[item.product.id],
       );
       _sales.add(
         Sale(
@@ -117,7 +131,44 @@ class StoreRepository extends ChangeNotifier {
           createdAt: now,
         ),
       );
+      _stockMovements.add(
+        StockMovement(
+          product: _products[index],
+          type: StockMovementType.sale,
+          quantity: item.quantity.toInt(),
+          reason: 'Sale',
+          createdAt: now,
+        ),
+      );
     }
+    notifyListeners();
+    return null;
+  }
+
+  String? adjustStock({
+    required Product product,
+    required int quantity,
+    required StockMovementType type,
+    required String reason,
+  }) {
+    if (quantity <= 0) return 'Quantity must be greater than zero';
+    final index = _products.indexWhere((item) => item.id == product.id);
+    final newStock = type == StockMovementType.stockIn
+        ? product.stock + quantity
+        : product.stock - quantity;
+    if (newStock < 0) {
+      return '${product.name} has only ${product.stock} in stock';
+    }
+    _products[index] = product.copyWith(stock: newStock);
+    _stockMovements.add(
+      StockMovement(
+        product: _products[index],
+        type: type,
+        quantity: quantity,
+        reason: reason,
+        createdAt: DateTime.now(),
+      ),
+    );
     notifyListeners();
     return null;
   }

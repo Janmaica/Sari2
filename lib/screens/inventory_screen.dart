@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../data/store_repository.dart';
+import '../models/product.dart';
+import '../models/stock_movement.dart';
+import 'stock_history_screen.dart';
 
 class InventoryScreen extends StatelessWidget {
   const InventoryScreen({super.key, this.repository});
@@ -23,6 +26,15 @@ class InventoryScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Inventory'),
         actions: [
+          IconButton(
+            tooltip: 'Stock history',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => StockHistoryScreen(repository: _repository),
+              ),
+            ),
+            icon: const Icon(Icons.history_rounded),
+          ),
           IconButton(
             tooltip: 'Add product',
             onPressed: () => _showAddProductForm(context),
@@ -98,11 +110,21 @@ class InventoryScreen extends StatelessWidget {
                     ),
                   ],
                 ),
+                onTap: () => _showStockAdjustment(context, product),
               ),
             );
           },
         ),
       ),
+    );
+  }
+
+  void _showStockAdjustment(BuildContext context, Product product) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) =>
+          _StockAdjustmentSheet(repository: _repository, product: product),
     );
   }
 }
@@ -249,6 +271,126 @@ class _AddProductSheetState extends State<_AddProductSheet> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _StockAdjustmentSheet extends StatefulWidget {
+  const _StockAdjustmentSheet({
+    required this.repository,
+    required this.product,
+  });
+
+  final StoreRepository repository;
+  final Product product;
+
+  @override
+  State<_StockAdjustmentSheet> createState() => _StockAdjustmentSheetState();
+}
+
+class _StockAdjustmentSheetState extends State<_StockAdjustmentSheet> {
+  final _quantityController = TextEditingController(text: '1');
+  StockMovementType _type = StockMovementType.stockIn;
+  String _reason = 'Restock';
+
+  @override
+  void dispose() {
+    _quantityController.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final quantity = int.tryParse(_quantityController.text);
+    if (quantity == null || quantity <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a quantity greater than zero.')),
+      );
+      return;
+    }
+    final error = widget.repository.adjustStock(
+      product: widget.product,
+      quantity: quantity,
+      type: _type,
+      reason: _reason,
+    );
+    if (error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isStockIn = _type == StockMovementType.stockIn;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        20 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            widget.product.name,
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<StockMovementType>(
+            initialValue: _type,
+            decoration: const InputDecoration(labelText: 'Movement type'),
+            items: const [
+              DropdownMenuItem(
+                value: StockMovementType.stockIn,
+                child: Text('Stock in'),
+              ),
+              DropdownMenuItem(
+                value: StockMovementType.damaged,
+                child: Text('Damaged'),
+              ),
+              DropdownMenuItem(
+                value: StockMovementType.lost,
+                child: Text('Lost'),
+              ),
+              DropdownMenuItem(
+                value: StockMovementType.expired,
+                child: Text('Expired'),
+              ),
+              DropdownMenuItem(
+                value: StockMovementType.adjustment,
+                child: Text('Manual adjustment'),
+              ),
+            ],
+            onChanged: (value) {
+              if (value != null) {
+                setState(() {
+                  _type = value;
+                  _reason = value == StockMovementType.stockIn
+                      ? 'Restock'
+                      : value.name;
+                });
+              }
+            },
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _quantityController,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: isStockIn ? 'Quantity to add' : 'Quantity to remove',
+            ),
+          ),
+          const SizedBox(height: 20),
+          FilledButton(onPressed: _save, child: const Text('Save movement')),
+        ],
       ),
     );
   }
