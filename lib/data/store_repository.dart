@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import '../models/product.dart';
 import '../models/sale.dart';
 import '../models/stock_movement.dart';
+import '../models/customer.dart';
+import '../models/debt.dart';
 
 class StoreRepository extends ChangeNotifier {
   StoreRepository();
@@ -38,10 +40,18 @@ class StoreRepository extends ChangeNotifier {
 
   final List<Sale> _sales = [];
   final List<StockMovement> _stockMovements = [];
+  final List<Customer> _customers = [];
+  final List<Debt> _debts = [];
+  final List<Payment> _payments = [];
 
   List<Product> get products => List.unmodifiable(_products);
   List<Sale> get sales => List.unmodifiable(_sales);
   List<StockMovement> get stockMovements => List.unmodifiable(_stockMovements);
+  List<Customer> get customers => List.unmodifiable(_customers);
+  List<Debt> get debts => List.unmodifiable(_debts);
+  List<Payment> get payments => List.unmodifiable(_payments);
+  double get outstandingUtang =>
+      _customers.fold(0, (total, customer) => total + customer.balance);
 
   double get todaySalesTotal =>
       _sales.fold(0, (total, sale) => total + sale.total);
@@ -166,6 +176,59 @@ class StoreRepository extends ChangeNotifier {
         type: type,
         quantity: quantity,
         reason: reason,
+        createdAt: DateTime.now(),
+      ),
+    );
+    notifyListeners();
+    return null;
+  }
+
+  Customer addCustomer({
+    required String name,
+    String contact = '',
+    String notes = '',
+  }) {
+    final customer = Customer(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      name: name,
+      contact: contact,
+      notes: notes,
+    );
+    _customers.add(customer);
+    notifyListeners();
+    return customer;
+  }
+
+  String? addDebt({required Customer customer, required double amount}) {
+    if (amount <= 0) return 'Debt amount must be greater than zero';
+    final index = _customers.indexWhere((item) => item.id == customer.id);
+    final updatedCustomer = customer.copyWith(
+      balance: customer.balance + amount,
+    );
+    _customers[index] = updatedCustomer;
+    _debts.add(
+      Debt(
+        customerId: customer.id,
+        amount: amount,
+        remainingAmount: amount,
+        createdAt: DateTime.now(),
+      ),
+    );
+    notifyListeners();
+    return null;
+  }
+
+  String? recordPayment({required Customer customer, required double amount}) {
+    if (amount <= 0) return 'Payment must be greater than zero';
+    if (amount > customer.balance) {
+      return 'Payment cannot be greater than the remaining balance';
+    }
+    final index = _customers.indexWhere((item) => item.id == customer.id);
+    _customers[index] = customer.copyWith(balance: customer.balance - amount);
+    _payments.add(
+      Payment(
+        customerId: customer.id,
+        amount: amount,
         createdAt: DateTime.now(),
       ),
     );

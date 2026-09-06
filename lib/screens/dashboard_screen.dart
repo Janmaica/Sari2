@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/store_repository.dart';
 import 'inventory_screen.dart';
 import 'record_sale_screen.dart';
+import 'utang_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key, this.repository});
@@ -113,6 +114,16 @@ class DashboardScreen extends StatelessWidget {
                   onPressed: () => _showComingSoon(
                     context,
                     'Reports will be added after sales data.',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _ActionButton(
+                  icon: Icons.account_balance_wallet_outlined,
+                  label: 'Manage utang',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => UtangScreen(repository: _repository),
+                    ),
                   ),
                 ),
               ],

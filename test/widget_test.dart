@@ -195,6 +195,39 @@ void main() {
     expect(repository.stockMovements, isEmpty);
   });
 
+  test('tracks utang balance and payments', () {
+    final repository = StoreRepository();
+    final customer = repository.addCustomer(
+      name: 'Juan',
+      contact: '09123456789',
+    );
+
+    expect(repository.addDebt(customer: customer, amount: 500), isNull);
+    expect(repository.customers.single.balance, 500);
+
+    final updatedCustomer = repository.customers.single;
+    expect(
+      repository.recordPayment(customer: updatedCustomer, amount: 200),
+      isNull,
+    );
+    expect(repository.customers.single.balance, 300);
+    expect(repository.payments.single.amount, 200);
+  });
+
+  test('rejects payment greater than utang balance', () {
+    final repository = StoreRepository();
+    final customer = repository.addCustomer(name: 'Juan');
+    repository.addDebt(customer: customer, amount: 100);
+
+    final error = repository.recordPayment(
+      customer: repository.customers.single,
+      amount: 101,
+    );
+
+    expect(error, contains('remaining balance'));
+    expect(repository.customers.single.balance, 100);
+  });
+
   testWidgets('opens inventory from the dashboard', (
     WidgetTester tester,
   ) async {
@@ -206,6 +239,35 @@ void main() {
     expect(find.text('Inventory'), findsOneWidget);
     expect(find.text('Rice (1 kg)'), findsOneWidget);
     expect(find.text('Low stock'), findsOneWidget);
+  });
+
+  testWidgets('opens utang from the dashboard', (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: DashboardScreen()));
+
+    await tester.tap(find.text('Manage utang'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Utang'), findsOneWidget);
+    expect(find.text('No customers yet.'), findsOneWidget);
+  });
+
+  testWidgets('adds an utang customer', (WidgetTester tester) async {
+    final repository = StoreRepository();
+    await tester.pumpWidget(
+      MaterialApp(home: UtangScreen(repository: repository)),
+    );
+
+    await tester.tap(find.byTooltip('Add customer'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Customer name'),
+      'Juan',
+    );
+    await tester.tap(find.text('Save customer'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Juan'), findsOneWidget);
+    expect(find.text('Paid in full'), findsOneWidget);
   });
 
   testWidgets('adds a product to inventory', (WidgetTester tester) async {
