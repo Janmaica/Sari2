@@ -17,7 +17,7 @@ class _SaleLine {
   _SaleLine(this.product)
     : quantityController = TextEditingController(text: '1'),
       priceController = TextEditingController(
-        text: product.defaultPrice.toStringAsFixed(2),
+        text: product.sellingPrice.toStringAsFixed(2),
       );
 
   Product product;
@@ -74,13 +74,23 @@ class _RecordSaleScreenState extends State<RecordSaleScreen> {
       return;
     }
 
-    for (final line in _lines) {
-      _repository.recordSale(
-        product: line.product,
-        quantity: double.parse(line.quantityController.text),
-        unitPrice: double.parse(line.priceController.text),
-        saleType: _saleType,
-      );
+    final error = _repository.recordTransaction(
+      items: _lines
+          .map(
+            (line) => SaleDraft(
+              product: line.product,
+              quantity: double.parse(line.quantityController.text),
+              unitPrice: double.parse(line.priceController.text),
+            ),
+          )
+          .toList(),
+      saleType: _saleType,
+    );
+    if (error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+      return;
     }
 
     ScaffoldMessenger.of(
@@ -235,7 +245,7 @@ class _RecordSaleScreenState extends State<RecordSaleScreen> {
                 );
                 setState(() {
                   line.product = product;
-                  line.priceController.text = product.defaultPrice
+                  line.priceController.text = product.sellingPrice
                       .toStringAsFixed(2);
                 });
               },
@@ -253,7 +263,9 @@ class _RecordSaleScreenState extends State<RecordSaleScreen> {
                     onChanged: (_) => setState(() {}),
                     validator: (value) {
                       final quantity = double.tryParse(value ?? '');
-                      if (quantity == null || quantity <= 0) {
+                      if (quantity == null ||
+                          quantity <= 0 ||
+                          quantity % 1 != 0) {
                         return 'Enter a quantity above zero';
                       }
                       return null;

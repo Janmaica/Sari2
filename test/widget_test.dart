@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:sari2_app/main.dart';
+import 'package:sari2_app/data/store_repository.dart';
+import 'package:sari2_app/models/sale.dart';
 
 void main() {
   testWidgets('shows the login form', (WidgetTester tester) async {
@@ -115,5 +117,80 @@ void main() {
     await tester.pump();
 
     expect(find.text('Sale recorded locally.'), findsOneWidget);
+  });
+
+  test('deducts stock only after validating the transaction', () {
+    final repository = StoreRepository();
+    final product = repository.products.first;
+
+    final success = repository.recordTransaction(
+      items: [SaleDraft(product: product, quantity: 3, unitPrice: 55)],
+      saleType: SaleType.cash,
+    );
+
+    expect(success, isNull);
+    expect(repository.products.first.stock, 15);
+    expect(repository.sales, hasLength(1));
+  });
+
+  test('rejects a sale that would make stock negative', () {
+    final repository = StoreRepository();
+    final product = repository.products.first;
+
+    final error = repository.recordTransaction(
+      items: [
+        SaleDraft(product: product, quantity: product.stock + 1, unitPrice: 55),
+      ],
+      saleType: SaleType.cash,
+    );
+
+    expect(error, contains('in stock'));
+    expect(repository.products.first.stock, product.stock);
+    expect(repository.sales, isEmpty);
+  });
+
+  testWidgets('opens inventory from the dashboard', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: DashboardScreen()));
+
+    await tester.tap(find.text('Add a product'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Inventory'), findsOneWidget);
+    expect(find.text('Rice (1 kg)'), findsOneWidget);
+    expect(find.text('Low stock'), findsOneWidget);
+  });
+
+  testWidgets('adds a product to inventory', (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: InventoryScreen()));
+
+    await tester.tap(find.byTooltip('Add product'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Product name'),
+      'Coke',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Capital price'),
+      '10',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Selling price'),
+      '12',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Stock quantity'),
+      '20',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Low-stock threshold'),
+      '5',
+    );
+    await tester.tap(find.text('Save product'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Coke'), findsOneWidget);
+    expect(find.text('20 in stock'), findsOneWidget);
   });
 }

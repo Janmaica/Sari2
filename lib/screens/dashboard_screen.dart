@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/store_repository.dart';
+import 'inventory_screen.dart';
 import 'record_sale_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -99,9 +100,10 @@ class DashboardScreen extends StatelessWidget {
                 _ActionButton(
                   icon: Icons.add_box_outlined,
                   label: 'Add a product',
-                  onPressed: () => _showComingSoon(
-                    context,
-                    'Product management will be added next.',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => InventoryScreen(repository: _repository),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 10),
