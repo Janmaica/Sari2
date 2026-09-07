@@ -7,6 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:sari2_app/main.dart';
 import 'package:sari2_app/data/store_repository.dart';
@@ -14,6 +15,11 @@ import 'package:sari2_app/models/sale.dart';
 import 'package:sari2_app/models/stock_movement.dart';
 
 void main() {
+  setUp(() {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('shows the login form', (WidgetTester tester) async {
     await tester.pumpWidget(const Sari2App());
 
@@ -298,6 +304,32 @@ void main() {
     expect(find.text('Expenses'), findsOneWidget);
   });
 
+  testWidgets('opens the sales report and shows profit summary', (
+    WidgetTester tester,
+  ) async {
+    final repository = StoreRepository();
+    repository.recordTransaction(
+      items: [
+        SaleDraft(
+          product: repository.products.first,
+          quantity: 2,
+          unitPrice: 55,
+        ),
+      ],
+      saleType: SaleType.cash,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: ReportsScreen(repository: repository)),
+    );
+
+    expect(find.text('Sales report'), findsOneWidget);
+    expect(find.text('P110.00'), findsOneWidget);
+    expect(find.text('Gross profit'), findsOneWidget);
+    expect(find.text('Net profit'), findsOneWidget);
+    expect(find.textContaining('P10.00'), findsNWidgets(2));
+  });
+
   testWidgets('adds an utang customer', (WidgetTester tester) async {
     final repository = StoreRepository();
     await tester.pumpWidget(
@@ -368,5 +400,23 @@ void main() {
 
     expect(find.text('Stock history'), findsOneWidget);
     expect(find.text('Stock in: Restock'), findsOneWidget);
+  });
+
+  test('persists and restores store data locally', () async {
+    final repository = StoreRepository();
+    repository.addCustomer(name: 'Maria', contact: '0912');
+    repository.addProduct(
+      name: 'Soap',
+      capitalPrice: 8,
+      sellingPrice: 12,
+      stock: 10,
+      lowStockThreshold: 3,
+    );
+
+    await repository.saveToDisk();
+
+    final restored = await StoreRepository.loadFromDisk();
+    expect(restored.customers.single.name, 'Maria');
+    expect(restored.products.any((product) => product.name == 'Soap'), isTrue);
   });
 }

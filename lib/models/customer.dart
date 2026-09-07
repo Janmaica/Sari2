@@ -22,4 +22,20 @@ class Customer {
       balance: balance ?? this.balance,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'contact': contact,
+    'notes': notes,
+    'balance': balance,
+  };
+
+  factory Customer.fromJson(Map<String, dynamic> json) => Customer(
+    id: json['id'] as String,
+    name: json['name'] as String,
+    contact: (json['contact'] ?? '') as String,
+    notes: (json['notes'] ?? '') as String,
+    balance: (json['balance'] as num? ?? 0).toDouble(),
+  );
 }

@@ -4,6 +4,7 @@ import '../data/store_repository.dart';
 import 'expenses_screen.dart';
 import 'inventory_screen.dart';
 import 'record_sale_screen.dart';
+import 'reports_screen.dart';
 import 'utang_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -123,9 +124,11 @@ class DashboardScreen extends StatelessWidget {
                       _ActionButton(
                         icon: Icons.bar_chart_rounded,
                         label: 'View sales report',
-                        onPressed: () => _showComingSoon(
-                          context,
-                          'Reports will be added after sales data.',
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                ReportsScreen(repository: _repository),
+                          ),
                         ),
                       ),
                       _ActionButton(

@@ -16,4 +16,23 @@ class StockMovement {
   final int quantity;
   final String reason;
   final DateTime createdAt;
+
+  Map<String, dynamic> toJson() => {
+    'product': product.toJson(),
+    'type': type.name,
+    'quantity': quantity,
+    'reason': reason,
+    'createdAt': createdAt.toIso8601String(),
+  };
+
+  factory StockMovement.fromJson(Map<String, dynamic> json) => StockMovement(
+    product: Product.fromJson(json['product'] as Map<String, dynamic>),
+    type: StockMovementType.values.firstWhere(
+      (type) => type.name == json['type'],
+      orElse: () => StockMovementType.adjustment,
+    ),
+    quantity: json['quantity'] as int,
+    reason: json['reason'] as String,
+    createdAt: DateTime.parse(json['createdAt'] as String),
+  );
 }

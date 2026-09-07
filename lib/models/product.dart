@@ -28,4 +28,22 @@ class Product {
       lowStockThreshold: lowStockThreshold,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'capitalPrice': capitalPrice,
+    'sellingPrice': sellingPrice,
+    'stock': stock,
+    'lowStockThreshold': lowStockThreshold,
+  };
+
+  factory Product.fromJson(Map<String, dynamic> json) => Product(
+    id: json['id'] as String,
+    name: json['name'] as String,
+    capitalPrice: (json['capitalPrice'] as num).toDouble(),
+    sellingPrice: (json['sellingPrice'] as num).toDouble(),
+    stock: json['stock'] as int,
+    lowStockThreshold: json['lowStockThreshold'] as int,
+  );
 }

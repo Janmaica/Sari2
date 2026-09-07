@@ -1,4 +1,8 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/product.dart';
 import '../models/sale.dart';
@@ -9,6 +13,8 @@ import '../models/expense.dart';
 
 class StoreRepository extends ChangeNotifier {
   StoreRepository();
+
+  static const _storageKey = 'sari2_store_state';
 
   static final instance = StoreRepository();
 
@@ -59,8 +65,98 @@ class StoreRepository extends ChangeNotifier {
   double get todaySalesTotal =>
       _sales.fold(0, (total, sale) => total + sale.total);
 
+  double get totalSalesRevenue =>
+      _sales.fold(0, (total, sale) => total + sale.total);
+
+  double get totalCostOfGoodsSold {
+    double totalCost = 0;
+    for (final sale in _sales) {
+      for (final product in _products) {
+        if (product.id == sale.productId) {
+          totalCost += product.capitalPrice * sale.quantity;
+          break;
+        }
+      }
+    }
+    return totalCost;
+  }
+
+  double get grossProfit => totalSalesRevenue - totalCostOfGoodsSold;
+
   double get totalExpenses =>
       _expenses.fold(0, (total, expense) => total + expense.amount);
+
+  static Future<StoreRepository> loadFromDisk() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_storageKey);
+    final repository = StoreRepository();
+
+    if (raw == null || raw.isEmpty) {
+      return repository;
+    }
+
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      repository._products.clear();
+      repository._customers.clear();
+      repository._sales.clear();
+      repository._stockMovements.clear();
+      repository._debts.clear();
+      repository._payments.clear();
+      repository._expenses.clear();
+
+      final productList = (decoded['products'] as List? ?? const [])
+          .map((item) => Product.fromJson(item as Map<String, dynamic>))
+          .toList();
+      final customerList = (decoded['customers'] as List? ?? const [])
+          .map((item) => Customer.fromJson(item as Map<String, dynamic>))
+          .toList();
+      final saleList = (decoded['sales'] as List? ?? const [])
+          .map((item) => Sale.fromJson(item as Map<String, dynamic>))
+          .toList();
+      final stockMovementList = (decoded['stockMovements'] as List? ?? const [])
+          .map((item) => StockMovement.fromJson(item as Map<String, dynamic>))
+          .toList();
+      final debtList = (decoded['debts'] as List? ?? const [])
+          .map((item) => Debt.fromJson(item as Map<String, dynamic>))
+          .toList();
+      final paymentList = (decoded['payments'] as List? ?? const [])
+          .map((item) => Payment.fromJson(item as Map<String, dynamic>))
+          .toList();
+      final expenseList = (decoded['expenses'] as List? ?? const [])
+          .map((item) => Expense.fromJson(item as Map<String, dynamic>))
+          .toList();
+
+      repository._products.addAll(productList);
+      repository._customers.addAll(customerList);
+      repository._sales.addAll(saleList);
+      repository._stockMovements.addAll(stockMovementList);
+      repository._debts.addAll(debtList);
+      repository._payments.addAll(paymentList);
+      repository._expenses.addAll(expenseList);
+    } catch (_) {
+      return repository;
+    }
+
+    repository.notifyListeners();
+    return repository;
+  }
+
+  Future<void> saveToDisk() async {
+    final prefs = await SharedPreferences.getInstance();
+    final payload = jsonEncode({
+      'products': _products.map((product) => product.toJson()).toList(),
+      'customers': _customers.map((customer) => customer.toJson()).toList(),
+      'sales': _sales.map((sale) => sale.toJson()).toList(),
+      'stockMovements': _stockMovements
+          .map((movement) => movement.toJson())
+          .toList(),
+      'debts': _debts.map((debt) => debt.toJson()).toList(),
+      'payments': _payments.map((payment) => payment.toJson()).toList(),
+      'expenses': _expenses.map((expense) => expense.toJson()).toList(),
+    });
+    await prefs.setString(_storageKey, payload);
+  }
 
   int get lowStockCount =>
       _products.where((product) => product.isLowStock).length;
@@ -86,6 +182,7 @@ class StoreRepository extends ChangeNotifier {
       ),
     );
     notifyListeners();
+    unawaited(saveToDisk());
   }
 
   void recordSale({
@@ -193,6 +290,7 @@ class StoreRepository extends ChangeNotifier {
       );
     }
     notifyListeners();
+    unawaited(saveToDisk());
     return null;
   }
 
@@ -221,6 +319,7 @@ class StoreRepository extends ChangeNotifier {
       ),
     );
     notifyListeners();
+    unawaited(saveToDisk());
     return null;
   }
 
@@ -237,6 +336,7 @@ class StoreRepository extends ChangeNotifier {
     );
     _customers.add(customer);
     notifyListeners();
+    unawaited(saveToDisk());
     return customer;
   }
 
@@ -256,6 +356,7 @@ class StoreRepository extends ChangeNotifier {
       ),
     );
     notifyListeners();
+    unawaited(saveToDisk());
     return null;
   }
 
@@ -277,6 +378,7 @@ class StoreRepository extends ChangeNotifier {
       ),
     );
     notifyListeners();
+    unawaited(saveToDisk());
     return null;
   }
 
@@ -295,6 +397,7 @@ class StoreRepository extends ChangeNotifier {
       ),
     );
     notifyListeners();
+    unawaited(saveToDisk());
     return null;
   }
 }
