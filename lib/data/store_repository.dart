@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/product.dart';
+import '../models/purchase.dart';
 import '../models/sale.dart';
 import '../models/stock_movement.dart';
 import '../models/customer.dart';
@@ -51,6 +52,7 @@ class StoreRepository extends ChangeNotifier {
   final List<Debt> _debts = [];
   final List<Payment> _payments = [];
   final List<Expense> _expenses = [];
+  final List<Purchase> _purchases = [];
 
   List<Product> get products => List.unmodifiable(_products);
   List<Sale> get sales => List.unmodifiable(_sales);
@@ -59,6 +61,7 @@ class StoreRepository extends ChangeNotifier {
   List<Debt> get debts => List.unmodifiable(_debts);
   List<Payment> get payments => List.unmodifiable(_payments);
   List<Expense> get expenses => List.unmodifiable(_expenses);
+  List<Purchase> get purchases => List.unmodifiable(_purchases);
   double get outstandingUtang =>
       _customers.fold(0, (total, customer) => total + customer.balance);
 
@@ -86,6 +89,107 @@ class StoreRepository extends ChangeNotifier {
   double get totalExpenses =>
       _expenses.fold(0, (total, expense) => total + expense.amount);
 
+  double get cashSalesInflow => _sales.fold(
+    0,
+    (total, sale) =>
+        sale.saleType == SaleType.cash ? total + sale.total : total,
+  );
+
+  double get utangSalesInflow => _sales.fold(
+    0,
+    (total, sale) =>
+        sale.saleType == SaleType.utang ? total + sale.total : total,
+  );
+
+  double get netCashFlow => cashSalesInflow - totalExpenses;
+
+  Map<String, dynamic> toBackupJson() => {
+    'products': _products.map((product) => product.toJson()).toList(),
+    'customers': _customers.map((customer) => customer.toJson()).toList(),
+    'sales': _sales.map((sale) => sale.toJson()).toList(),
+    'stockMovements': _stockMovements
+        .map((movement) => movement.toJson())
+        .toList(),
+    'debts': _debts.map((debt) => debt.toJson()).toList(),
+    'payments': _payments.map((payment) => payment.toJson()).toList(),
+    'expenses': _expenses.map((expense) => expense.toJson()).toList(),
+    'purchases': _purchases.map((purchase) => purchase.toJson()).toList(),
+  };
+
+  String exportBackup() => jsonEncode(toBackupJson());
+
+  String? restoreBackup(String backup) {
+    if (backup.trim().isEmpty) return 'Backup is empty';
+
+    try {
+      final decoded = jsonDecode(backup) as Map<String, dynamic>;
+      _products
+        ..clear()
+        ..addAll(
+          (decoded['products'] as List? ?? const [])
+              .map((item) => Product.fromJson(item as Map<String, dynamic>))
+              .toList(),
+        );
+      _customers
+        ..clear()
+        ..addAll(
+          (decoded['customers'] as List? ?? const [])
+              .map((item) => Customer.fromJson(item as Map<String, dynamic>))
+              .toList(),
+        );
+      _sales
+        ..clear()
+        ..addAll(
+          (decoded['sales'] as List? ?? const [])
+              .map((item) => Sale.fromJson(item as Map<String, dynamic>))
+              .toList(),
+        );
+      _stockMovements
+        ..clear()
+        ..addAll(
+          (decoded['stockMovements'] as List? ?? const [])
+              .map(
+                (item) => StockMovement.fromJson(item as Map<String, dynamic>),
+              )
+              .toList(),
+        );
+      _debts
+        ..clear()
+        ..addAll(
+          (decoded['debts'] as List? ?? const [])
+              .map((item) => Debt.fromJson(item as Map<String, dynamic>))
+              .toList(),
+        );
+      _payments
+        ..clear()
+        ..addAll(
+          (decoded['payments'] as List? ?? const [])
+              .map((item) => Payment.fromJson(item as Map<String, dynamic>))
+              .toList(),
+        );
+      _expenses
+        ..clear()
+        ..addAll(
+          (decoded['expenses'] as List? ?? const [])
+              .map((item) => Expense.fromJson(item as Map<String, dynamic>))
+              .toList(),
+        );
+      _purchases
+        ..clear()
+        ..addAll(
+          (decoded['purchases'] as List? ?? const [])
+              .map((item) => Purchase.fromJson(item as Map<String, dynamic>))
+              .toList(),
+        );
+    } catch (_) {
+      return 'Backup is not valid JSON data';
+    }
+
+    notifyListeners();
+    unawaited(saveToDisk());
+    return null;
+  }
+
   static Future<StoreRepository> loadFromDisk() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_storageKey);
@@ -104,6 +208,7 @@ class StoreRepository extends ChangeNotifier {
       repository._debts.clear();
       repository._payments.clear();
       repository._expenses.clear();
+      repository._purchases.clear();
 
       final productList = (decoded['products'] as List? ?? const [])
           .map((item) => Product.fromJson(item as Map<String, dynamic>))
@@ -126,6 +231,9 @@ class StoreRepository extends ChangeNotifier {
       final expenseList = (decoded['expenses'] as List? ?? const [])
           .map((item) => Expense.fromJson(item as Map<String, dynamic>))
           .toList();
+      final purchaseList = (decoded['purchases'] as List? ?? const [])
+          .map((item) => Purchase.fromJson(item as Map<String, dynamic>))
+          .toList();
 
       repository._products.addAll(productList);
       repository._customers.addAll(customerList);
@@ -134,6 +242,7 @@ class StoreRepository extends ChangeNotifier {
       repository._debts.addAll(debtList);
       repository._payments.addAll(paymentList);
       repository._expenses.addAll(expenseList);
+      repository._purchases.addAll(purchaseList);
     } catch (_) {
       return repository;
     }
@@ -144,17 +253,7 @@ class StoreRepository extends ChangeNotifier {
 
   Future<void> saveToDisk() async {
     final prefs = await SharedPreferences.getInstance();
-    final payload = jsonEncode({
-      'products': _products.map((product) => product.toJson()).toList(),
-      'customers': _customers.map((customer) => customer.toJson()).toList(),
-      'sales': _sales.map((sale) => sale.toJson()).toList(),
-      'stockMovements': _stockMovements
-          .map((movement) => movement.toJson())
-          .toList(),
-      'debts': _debts.map((debt) => debt.toJson()).toList(),
-      'payments': _payments.map((payment) => payment.toJson()).toList(),
-      'expenses': _expenses.map((expense) => expense.toJson()).toList(),
-    });
+    final payload = jsonEncode(toBackupJson());
     await prefs.setString(_storageKey, payload);
   }
 
@@ -377,6 +476,46 @@ class StoreRepository extends ChangeNotifier {
         createdAt: DateTime.now(),
       ),
     );
+    notifyListeners();
+    unawaited(saveToDisk());
+    return null;
+  }
+
+  String? addPurchase({
+    Product? product,
+    required String supplierName,
+    required int quantity,
+    required double unitCost,
+  }) {
+    if (supplierName.trim().isEmpty) {
+      return 'Supplier name is required';
+    }
+    if (quantity <= 0) return 'Quantity must be greater than zero';
+    if (unitCost < 0) return 'Unit cost cannot be negative';
+
+    final selectedProduct = product ?? _products.first;
+    final purchase = Purchase(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      supplierName: supplierName.trim(),
+      productId: selectedProduct.id,
+      productName: selectedProduct.name,
+      quantity: quantity,
+      unitCost: unitCost,
+      totalCost: unitCost * quantity,
+      createdAt: DateTime.now(),
+    );
+    _purchases.add(purchase);
+
+    final stockError = adjustStock(
+      product: selectedProduct,
+      quantity: quantity,
+      type: StockMovementType.stockIn,
+      reason: 'Supplier: ${supplierName.trim()}',
+    );
+    if (stockError != null) {
+      _purchases.removeLast();
+      return stockError;
+    }
     notifyListeners();
     unawaited(saveToDisk());
     return null;

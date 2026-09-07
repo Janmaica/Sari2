@@ -350,7 +350,37 @@ void main() {
     expect(find.text('P110.00'), findsOneWidget);
   });
 
-  testWidgets('opens the sales report and shows profit summary', (
+  testWidgets('tracks supplier purchases and adds stock', (
+    WidgetTester tester,
+  ) async {
+    final repository = StoreRepository();
+    await tester.pumpWidget(
+      MaterialApp(home: PurchasesScreen(repository: repository)),
+    );
+
+    await tester.tap(find.byTooltip('Add purchase'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Supplier name'),
+      'ABC Foods',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Quantity'),
+      '10',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Unit cost'),
+      '45',
+    );
+    await tester.tap(find.text('Save purchase'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ABC Foods'), findsOneWidget);
+    expect(find.text('P450.00'), findsOneWidget);
+    expect(repository.products.first.stock, 28);
+  });
+
+  testWidgets('shows cash flow summary from sales and expenses', (
     WidgetTester tester,
   ) async {
     final repository = StoreRepository();
@@ -366,14 +396,33 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MaterialApp(home: ReportsScreen(repository: repository)),
+      MaterialApp(home: CashFlowScreen(repository: repository)),
     );
 
-    expect(find.text('Sales report'), findsOneWidget);
-    expect(find.text('P110.00'), findsOneWidget);
-    expect(find.text('Gross profit'), findsOneWidget);
-    expect(find.text('Net profit'), findsOneWidget);
-    expect(find.textContaining('P10.00'), findsNWidgets(2));
+    expect(find.text('Cash flow'), findsOneWidget);
+    expect(find.text('Cash sales'), findsOneWidget);
+    expect(find.text('Net cash flow'), findsOneWidget);
+    expect(find.text('P110.00'), findsNWidgets(2));
+  });
+
+  test('exports and restores the store backup as JSON', () {
+    final repository = StoreRepository();
+    repository.addExpense(
+      name: 'Electric bill',
+      amount: 150,
+      category: 'Utilities',
+    );
+
+    final backup = repository.exportBackup();
+
+    expect(backup, contains('Electric bill'));
+    expect(backup, contains('expenses'));
+
+    final restoredRepository = StoreRepository();
+    final restoreError = restoredRepository.restoreBackup(backup);
+
+    expect(restoreError, isNull);
+    expect(restoredRepository.expenses.single.name, 'Electric bill');
   });
 
   testWidgets('adds an utang customer', (WidgetTester tester) async {

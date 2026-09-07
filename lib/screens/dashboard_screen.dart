@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../data/store_repository.dart';
 import 'expenses_screen.dart';
 import 'inventory_screen.dart';
+import 'cash_flow_screen.dart';
 import 'notifications_screen.dart';
+import 'purchases_screen.dart';
 import 'record_sale_screen.dart';
 import 'reports_screen.dart';
 import 'sales_history_screen.dart';
@@ -145,12 +147,32 @@ class DashboardScreen extends StatelessWidget {
                         ),
                       ),
                       _ActionButton(
+                        icon: Icons.attach_money_rounded,
+                        label: 'Cash flow',
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                CashFlowScreen(repository: _repository),
+                          ),
+                        ),
+                      ),
+                      _ActionButton(
                         icon: Icons.history_rounded,
                         label: 'Sales history',
                         onPressed: () => Navigator.of(context).push(
                           MaterialPageRoute<void>(
                             builder: (_) =>
                                 SalesHistoryScreen(repository: _repository),
+                          ),
+                        ),
+                      ),
+                      _ActionButton(
+                        icon: Icons.local_shipping_outlined,
+                        label: 'Log purchase',
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                PurchasesScreen(repository: _repository),
                           ),
                         ),
                       ),
