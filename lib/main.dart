@@ -5,8 +5,10 @@ import 'screens/login_screen.dart';
 export 'screens/dashboard_screen.dart';
 export 'screens/inventory_screen.dart';
 export 'screens/login_screen.dart';
+export 'screens/notifications_screen.dart';
 export 'screens/record_sale_screen.dart';
 export 'screens/reports_screen.dart';
+export 'screens/sales_history_screen.dart';
 export 'screens/stock_history_screen.dart';
 export 'screens/utang_screen.dart';
 

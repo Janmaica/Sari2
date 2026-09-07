@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../data/store_repository.dart';
 import 'expenses_screen.dart';
 import 'inventory_screen.dart';
+import 'notifications_screen.dart';
 import 'record_sale_screen.dart';
 import 'reports_screen.dart';
+import 'sales_history_screen.dart';
 import 'utang_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -28,9 +30,10 @@ class DashboardScreen extends StatelessWidget {
         actions: [
           IconButton(
             tooltip: 'Notifications',
-            onPressed: () => _showComingSoon(
-              context,
-              'Notifications will be added with store data.',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => NotificationsScreen(repository: _repository),
+              ),
             ),
             icon: const Icon(Icons.notifications_none_rounded),
           ),
@@ -122,6 +125,16 @@ class DashboardScreen extends StatelessWidget {
                         ),
                       ),
                       _ActionButton(
+                        icon: Icons.account_balance_wallet_outlined,
+                        label: 'Manage utang',
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                UtangScreen(repository: _repository),
+                          ),
+                        ),
+                      ),
+                      _ActionButton(
                         icon: Icons.bar_chart_rounded,
                         label: 'View sales report',
                         onPressed: () => Navigator.of(context).push(
@@ -132,12 +145,12 @@ class DashboardScreen extends StatelessWidget {
                         ),
                       ),
                       _ActionButton(
-                        icon: Icons.account_balance_wallet_outlined,
-                        label: 'Manage utang',
+                        icon: Icons.history_rounded,
+                        label: 'Sales history',
                         onPressed: () => Navigator.of(context).push(
                           MaterialPageRoute<void>(
                             builder: (_) =>
-                                UtangScreen(repository: _repository),
+                                SalesHistoryScreen(repository: _repository),
                           ),
                         ),
                       ),

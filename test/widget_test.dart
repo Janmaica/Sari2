@@ -304,6 +304,52 @@ void main() {
     expect(find.text('Expenses'), findsOneWidget);
   });
 
+  testWidgets('opens the notifications center and shows store alerts', (
+    WidgetTester tester,
+  ) async {
+    final repository = StoreRepository();
+    repository.adjustStock(
+      product: repository.products.first,
+      quantity: 16,
+      type: StockMovementType.lost,
+      reason: 'Lost',
+    );
+    final customer = repository.addCustomer(name: 'Maria');
+    repository.addDebt(customer: customer, amount: 120);
+
+    await tester.pumpWidget(
+      MaterialApp(home: NotificationsScreen(repository: repository)),
+    );
+
+    expect(find.text('Notifications'), findsOneWidget);
+    expect(find.textContaining('low stock'), findsWidgets);
+    expect(find.textContaining('owes'), findsOneWidget);
+  });
+
+  testWidgets('shows sales history for recent transactions', (
+    WidgetTester tester,
+  ) async {
+    final repository = StoreRepository();
+    repository.recordTransaction(
+      items: [
+        SaleDraft(
+          product: repository.products.first,
+          quantity: 2,
+          unitPrice: 55,
+        ),
+      ],
+      saleType: SaleType.cash,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: SalesHistoryScreen(repository: repository)),
+    );
+
+    expect(find.text('Sales history'), findsOneWidget);
+    expect(find.text('Rice (1 kg)'), findsOneWidget);
+    expect(find.text('P110.00'), findsOneWidget);
+  });
+
   testWidgets('opens the sales report and shows profit summary', (
     WidgetTester tester,
   ) async {
