@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/store_repository.dart';
+import '../models/customer.dart';
 import '../models/product.dart';
 import '../models/sale.dart';
 
@@ -41,6 +42,7 @@ class _RecordSaleScreenState extends State<RecordSaleScreen> {
   late final StoreRepository _repository;
   late final List<_SaleLine> _lines;
   SaleType _saleType = SaleType.cash;
+  Customer? _selectedCustomer;
 
   double get _total => _lines.fold(0, (total, line) => total + line.total);
 
@@ -49,6 +51,9 @@ class _RecordSaleScreenState extends State<RecordSaleScreen> {
     super.initState();
     _repository = widget.repository ?? StoreRepository.instance;
     _lines = [_SaleLine(_repository.products.first)];
+    _selectedCustomer = _repository.customers.isNotEmpty
+        ? _repository.customers.first
+        : null;
   }
 
   @override
@@ -69,8 +74,70 @@ class _RecordSaleScreenState extends State<RecordSaleScreen> {
     setState(() {});
   }
 
+  void _showAddCustomerDialog() {
+    final nameController = TextEditingController();
+    final contactController = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Add customer'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Customer name'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: contactController,
+                decoration: const InputDecoration(
+                  labelText: 'Contact (optional)',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                if (name.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Enter a customer name.')),
+                  );
+                  return;
+                }
+                final customer = _repository.addCustomer(
+                  name: name,
+                  contact: contactController.text.trim(),
+                );
+                setState(() => _selectedCustomer = customer);
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Save customer'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _recordSale() {
     if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (_saleType == SaleType.utang && _selectedCustomer == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Create a customer before saving an utang sale.'),
+        ),
+      );
       return;
     }
 
@@ -85,6 +152,7 @@ class _RecordSaleScreenState extends State<RecordSaleScreen> {
           )
           .toList(),
       saleType: _saleType,
+      customer: _selectedCustomer,
     );
     if (error != null) {
       ScaffoldMessenger.of(
@@ -138,9 +206,55 @@ class _RecordSaleScreenState extends State<RecordSaleScreen> {
                   ],
                   selected: {_saleType},
                   onSelectionChanged: (selection) {
-                    setState(() => _saleType = selection.first);
+                    setState(() {
+                      _saleType = selection.first;
+                      if (_saleType == SaleType.utang &&
+                          _selectedCustomer == null &&
+                          _repository.customers.isNotEmpty) {
+                        _selectedCustomer = _repository.customers.first;
+                      }
+                    });
                   },
                 ),
+                if (_saleType == SaleType.utang) ...[
+                  const SizedBox(height: 18),
+                  if (_repository.customers.isEmpty)
+                    OutlinedButton.icon(
+                      onPressed: _showAddCustomerDialog,
+                      icon: const Icon(Icons.person_add_alt_1_rounded),
+                      label: const Text('Add customer for utang'),
+                    )
+                  else
+                    DropdownButtonFormField<String>(
+                      value: _selectedCustomer?.id,
+                      decoration: const InputDecoration(
+                        labelText: 'Customer',
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                      items: _repository.customers
+                          .map(
+                            (customer) => DropdownMenuItem(
+                              value: customer.id,
+                              child: Text(customer.name),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() {
+                          _selectedCustomer = _repository.customers.firstWhere(
+                            (customer) => customer.id == value,
+                          );
+                        });
+                      },
+                      validator: (value) {
+                        if (_saleType == SaleType.utang && value == null) {
+                          return 'Select a customer';
+                        }
+                        return null;
+                      },
+                    ),
+                ],
                 const SizedBox(height: 24),
                 ..._lines.asMap().entries.map(
                   (entry) => _buildSaleLine(entry.key, entry.value),

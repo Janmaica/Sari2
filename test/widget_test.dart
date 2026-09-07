@@ -95,10 +95,14 @@ void main() {
     expect(find.text('P31.00'), findsOneWidget);
   });
 
-  testWidgets('combines multiple items in one transaction', (
+  testWidgets('combines multiple items in one utang transaction', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: RecordSaleScreen()));
+    final repository = StoreRepository();
+    final customer = repository.addCustomer(name: 'Maria');
+    await tester.pumpWidget(
+      MaterialApp(home: RecordSaleScreen(repository: repository)),
+    );
 
     await tester.tap(find.text('Utang'));
     await tester.tap(find.text('Add another item'));
@@ -118,6 +122,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Sale recorded locally.'), findsOneWidget);
+    expect(repository.customers.single.balance, 25);
   });
 
   test('deducts stock only after validating the transaction', () {
@@ -228,6 +233,23 @@ void main() {
     expect(repository.customers.single.balance, 100);
   });
 
+  test('adds customer balance automatically when utang sale is recorded', () {
+    final repository = StoreRepository();
+    final customer = repository.addCustomer(name: 'Ana');
+    final product = repository.products.first;
+
+    final error = repository.recordTransaction(
+      items: [SaleDraft(product: product, quantity: 2, unitPrice: 55)],
+      saleType: SaleType.utang,
+      customer: customer,
+    );
+
+    expect(error, isNull);
+    expect(repository.customers.single.balance, 110);
+    expect(repository.sales.single.customerId, customer.id);
+    expect(repository.debts.single.amount, 110);
+  });
+
   testWidgets('opens inventory from the dashboard', (
     WidgetTester tester,
   ) async {
@@ -249,6 +271,31 @@ void main() {
 
     expect(find.text('Utang'), findsOneWidget);
     expect(find.text('No customers yet.'), findsOneWidget);
+  });
+
+  test('tracks store expenses', () {
+    final repository = StoreRepository();
+
+    expect(
+      repository.addExpense(
+        name: 'Electricity bill',
+        amount: 250,
+        category: 'Utilities',
+      ),
+      isNull,
+    );
+    expect(repository.expenses, hasLength(1));
+    expect(repository.totalExpenses, 250);
+  });
+
+  testWidgets('opens expenses from the dashboard', (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: DashboardScreen()));
+
+    await tester.ensureVisible(find.text('Track expenses'));
+    await tester.tap(find.text('Track expenses'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Expenses'), findsOneWidget);
   });
 
   testWidgets('adds an utang customer', (WidgetTester tester) async {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/store_repository.dart';
+import 'expenses_screen.dart';
 import 'inventory_screen.dart';
 import 'record_sale_screen.dart';
 import 'utang_screen.dart';
@@ -79,7 +80,14 @@ class DashboardScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 12),
+                _SummaryCard(
+                  label: 'Total expenses',
+                  value: 'P${_repository.totalExpenses.toStringAsFixed(2)}',
+                  icon: Icons.receipt_long_rounded,
+                  color: Color(0xFF7A3D18),
+                ),
+                const SizedBox(height: 24),
                 Text(
                   'Quick actions',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -88,43 +96,75 @@ class DashboardScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                _ActionButton(
-                  icon: Icons.point_of_sale_rounded,
-                  label: 'Record a sale',
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => RecordSaleScreen(repository: _repository),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _ActionButton(
-                  icon: Icons.add_box_outlined,
-                  label: 'Add a product',
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => InventoryScreen(repository: _repository),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _ActionButton(
-                  icon: Icons.bar_chart_rounded,
-                  label: 'View sales report',
-                  onPressed: () => _showComingSoon(
-                    context,
-                    'Reports will be added after sales data.',
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _ActionButton(
-                  icon: Icons.account_balance_wallet_outlined,
-                  label: 'Manage utang',
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => UtangScreen(repository: _repository),
-                    ),
-                  ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth > 520;
+                    final quickActions = [
+                      _ActionButton(
+                        icon: Icons.point_of_sale_rounded,
+                        label: 'Record a sale',
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                RecordSaleScreen(repository: _repository),
+                          ),
+                        ),
+                      ),
+                      _ActionButton(
+                        icon: Icons.add_box_outlined,
+                        label: 'Add a product',
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                InventoryScreen(repository: _repository),
+                          ),
+                        ),
+                      ),
+                      _ActionButton(
+                        icon: Icons.bar_chart_rounded,
+                        label: 'View sales report',
+                        onPressed: () => _showComingSoon(
+                          context,
+                          'Reports will be added after sales data.',
+                        ),
+                      ),
+                      _ActionButton(
+                        icon: Icons.account_balance_wallet_outlined,
+                        label: 'Manage utang',
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                UtangScreen(repository: _repository),
+                          ),
+                        ),
+                      ),
+                      _ActionButton(
+                        icon: Icons.receipt_long_rounded,
+                        label: 'Track expenses',
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                ExpensesScreen(repository: _repository),
+                          ),
+                        ),
+                      ),
+                    ];
+
+                    final buttonWidth = isWide
+                        ? (constraints.maxWidth - 10) / 2
+                        : constraints.maxWidth;
+
+                    return Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: quickActions
+                          .map(
+                            (button) =>
+                                SizedBox(width: buttonWidth, child: button),
+                          )
+                          .toList(),
+                    );
+                  },
                 ),
               ],
             ),

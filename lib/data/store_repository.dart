@@ -5,6 +5,7 @@ import '../models/sale.dart';
 import '../models/stock_movement.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
+import '../models/expense.dart';
 
 class StoreRepository extends ChangeNotifier {
   StoreRepository();
@@ -43,6 +44,7 @@ class StoreRepository extends ChangeNotifier {
   final List<Customer> _customers = [];
   final List<Debt> _debts = [];
   final List<Payment> _payments = [];
+  final List<Expense> _expenses = [];
 
   List<Product> get products => List.unmodifiable(_products);
   List<Sale> get sales => List.unmodifiable(_sales);
@@ -50,11 +52,15 @@ class StoreRepository extends ChangeNotifier {
   List<Customer> get customers => List.unmodifiable(_customers);
   List<Debt> get debts => List.unmodifiable(_debts);
   List<Payment> get payments => List.unmodifiable(_payments);
+  List<Expense> get expenses => List.unmodifiable(_expenses);
   double get outstandingUtang =>
       _customers.fold(0, (total, customer) => total + customer.balance);
 
   double get todaySalesTotal =>
       _sales.fold(0, (total, sale) => total + sale.total);
+
+  double get totalExpenses =>
+      _expenses.fold(0, (total, expense) => total + expense.amount);
 
   int get lowStockCount =>
       _products.where((product) => product.isLowStock).length;
@@ -87,12 +93,14 @@ class StoreRepository extends ChangeNotifier {
     required double quantity,
     required double unitPrice,
     required SaleType saleType,
+    Customer? customer,
   }) {
     recordTransaction(
       items: [
         SaleDraft(product: product, quantity: quantity, unitPrice: unitPrice),
       ],
       saleType: saleType,
+      customer: customer,
     );
   }
 
@@ -108,9 +116,14 @@ class StoreRepository extends ChangeNotifier {
   String? recordTransaction({
     required List<SaleDraft> items,
     required SaleType saleType,
+    Customer? customer,
   }) {
     final error = validateTransaction(items);
     if (error != null) return error;
+
+    if (saleType == SaleType.utang && customer == null) {
+      return 'Select a customer for this utang sale';
+    }
 
     final remainingStock = <String, int>{
       for (final product in _products) product.id: product.stock,
@@ -124,6 +137,33 @@ class StoreRepository extends ChangeNotifier {
     }
 
     final now = DateTime.now();
+    final totalDebtAmount = saleType == SaleType.utang
+        ? items.fold<double>(
+            0,
+            (sum, item) => sum + (item.quantity * item.unitPrice).toDouble(),
+          )
+        : 0.0;
+
+    if (saleType == SaleType.utang && customer != null) {
+      final customerIndex = _customers.indexWhere(
+        (item) => item.id == customer.id,
+      );
+      if (customerIndex != -1) {
+        final updatedCustomer = _customers[customerIndex].copyWith(
+          balance: _customers[customerIndex].balance + totalDebtAmount,
+        );
+        _customers[customerIndex] = updatedCustomer;
+        _debts.add(
+          Debt(
+            customerId: customer.id,
+            amount: totalDebtAmount,
+            remainingAmount: totalDebtAmount,
+            createdAt: now,
+          ),
+        );
+      }
+    }
+
     for (final item in items) {
       final index = _products.indexWhere(
         (product) => product.id == item.product.id,
@@ -139,6 +179,7 @@ class StoreRepository extends ChangeNotifier {
           unitPrice: item.unitPrice,
           saleType: saleType,
           createdAt: now,
+          customerId: customer?.id,
         ),
       );
       _stockMovements.add(
@@ -211,6 +252,27 @@ class StoreRepository extends ChangeNotifier {
         customerId: customer.id,
         amount: amount,
         remainingAmount: amount,
+        createdAt: DateTime.now(),
+      ),
+    );
+    notifyListeners();
+    return null;
+  }
+
+  String? addExpense({
+    required String name,
+    required double amount,
+    required String category,
+  }) {
+    if (name.trim().isEmpty) return 'Expense name is required';
+    if (amount <= 0) return 'Expense amount must be greater than zero';
+
+    _expenses.add(
+      Expense(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        name: name.trim(),
+        amount: amount,
+        category: category.trim().isEmpty ? 'General' : category.trim(),
         createdAt: DateTime.now(),
       ),
     );
