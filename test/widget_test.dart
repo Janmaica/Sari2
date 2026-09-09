@@ -492,7 +492,12 @@ void main() {
     );
     await tester.tap(find.text('Category'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Beverages'));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(DropdownMenuItem<String>),
+        matching: find.text('Beverages'),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Save product'));
     await tester.tap(find.text('Save product'));
@@ -502,6 +507,28 @@ void main() {
     expect(repository.products.first.capitalPrice, 52);
     expect(repository.products.first.sellingPrice, 60);
     expect(repository.products.first.stock, 10);
+  });
+
+  testWidgets('filters inventory products by category', (
+    WidgetTester tester,
+  ) async {
+    final repository = StoreRepository();
+    repository.updateProduct(
+      product: repository.products[1],
+      category: 'Beverages',
+    );
+    await tester.pumpWidget(
+      MaterialApp(home: InventoryScreen(repository: repository)),
+    );
+
+    expect(find.text('Rice (1 kg)'), findsOneWidget);
+    expect(find.text('Sardines (155 g)'), findsOneWidget);
+
+    await tester.tap(find.text('Beverages').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sardines (155 g)'), findsOneWidget);
+    expect(find.text('Rice (1 kg)'), findsNothing);
   });
 
   testWidgets('adds a product to inventory', (WidgetTester tester) async {

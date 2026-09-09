@@ -5,12 +5,30 @@ import '../models/product.dart';
 import '../models/stock_movement.dart';
 import 'stock_history_screen.dart';
 
-class InventoryScreen extends StatelessWidget {
+class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key, this.repository});
 
   final StoreRepository? repository;
 
-  StoreRepository get _repository => repository ?? StoreRepository.instance;
+  @override
+  State<InventoryScreen> createState() => _InventoryScreenState();
+}
+
+class _InventoryScreenState extends State<InventoryScreen> {
+  static const _categories = [
+    'All',
+    'Groceries',
+    'Beverages',
+    'School supplies',
+    'Snacks',
+    'Household',
+    'Hygiene',
+  ];
+
+  String _selectedCategory = 'All';
+
+  StoreRepository get _repository =>
+      widget.repository ?? StoreRepository.instance;
 
   void _showAddProductForm(BuildContext context) {
     showModalBottomSheet<void>(
@@ -53,78 +71,120 @@ class InventoryScreen extends StatelessWidget {
       ),
       body: ListenableBuilder(
         listenable: _repository,
-        builder: (context, _) => ListView.separated(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-          itemCount: _repository.products.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 10),
-          itemBuilder: (context, index) {
-            final product = _repository.products[index];
-            return Card(
-              margin: EdgeInsets.zero,
-              elevation: 0,
-              color: Colors.white,
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
+        builder: (context, _) {
+          final products = _selectedCategory == 'All'
+              ? _repository.products
+              : _repository.products
+                    .where((product) => product.category == _selectedCategory)
+                    .toList();
+
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+            children: [
+              Text(
+                'Categories',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: const Color(0xFF17372D),
+                  fontWeight: FontWeight.w800,
                 ),
-                leading: CircleAvatar(
-                  backgroundColor: product.isOutOfStock
-                      ? const Color(0xFFFCE8E6)
-                      : product.isLowStock
-                      ? const Color(0xFFFFF1D6)
-                      : const Color(0xFFE8F1EB),
-                  child: Icon(
-                    product.isOutOfStock
-                        ? Icons.remove_shopping_cart_outlined
-                        : Icons.inventory_2_outlined,
-                    color: product.isOutOfStock
-                        ? const Color(0xFFB3261E)
-                        : product.isLowStock
-                        ? const Color(0xFFC46A16)
-                        : const Color(0xFF156B4B),
-                  ),
-                ),
-                title: Text(
-                  product.name,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                subtitle: Text(
-                  'Category: ${product.category}\n'
-                  'Selling price: P${product.sellingPrice.toStringAsFixed(2)}\n'
-                  'Capital price: P${product.capitalPrice.toStringAsFixed(2)}',
-                ),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '${product.stock} in stock',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      product.isOutOfStock
-                          ? 'Out of stock'
-                          : product.isLowStock
-                          ? 'Low stock'
-                          : 'In stock',
-                      style: TextStyle(
-                        color: product.isOutOfStock
-                            ? const Color(0xFFB3261E)
-                            : product.isLowStock
-                            ? const Color(0xFFC46A16)
-                            : const Color(0xFF156B4B),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-                onTap: () => _showEditProductForm(context, product),
               ),
-            );
-          },
-        ),
+              const SizedBox(height: 10),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: _categories
+                      .map(
+                        (category) => Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(category),
+                            selected: _selectedCategory == category,
+                            onSelected: (_) =>
+                                setState(() => _selectedCategory = category),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+              const SizedBox(height: 18),
+              if (products.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 40),
+                  child: Center(
+                    child: Text('No products in $_selectedCategory.'),
+                  ),
+                )
+              else
+                ...products.map((product) {
+                  return Card(
+                    margin: EdgeInsets.zero,
+                    elevation: 0,
+                    color: Colors.white,
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      leading: CircleAvatar(
+                        backgroundColor: product.isOutOfStock
+                            ? const Color(0xFFFCE8E6)
+                            : product.isLowStock
+                            ? const Color(0xFFFFF1D6)
+                            : const Color(0xFFE8F1EB),
+                        child: Icon(
+                          product.isOutOfStock
+                              ? Icons.remove_shopping_cart_outlined
+                              : Icons.inventory_2_outlined,
+                          color: product.isOutOfStock
+                              ? const Color(0xFFB3261E)
+                              : product.isLowStock
+                              ? const Color(0xFFC46A16)
+                              : const Color(0xFF156B4B),
+                        ),
+                      ),
+                      title: Text(
+                        product.name,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text(
+                        'Category: ${product.category}\n'
+                        'Selling price: P${product.sellingPrice.toStringAsFixed(2)}\n'
+                        'Capital price: P${product.capitalPrice.toStringAsFixed(2)}',
+                      ),
+                      trailing: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '${product.stock} in stock',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            product.isOutOfStock
+                                ? 'Out of stock'
+                                : product.isLowStock
+                                ? 'Low stock'
+                                : 'In stock',
+                            style: TextStyle(
+                              color: product.isOutOfStock
+                                  ? const Color(0xFFB3261E)
+                                  : product.isLowStock
+                                  ? const Color(0xFFC46A16)
+                                  : const Color(0xFF156B4B),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      onTap: () => _showEditProductForm(context, product),
+                    ),
+                  );
+                }),
+            ],
+          );
+        },
       ),
     );
   }
