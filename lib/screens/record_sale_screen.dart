@@ -19,11 +19,13 @@ class _SaleLine {
     : quantityController = TextEditingController(text: '1'),
       priceController = TextEditingController(
         text: product.sellingPrice.toStringAsFixed(2),
-      );
+      ),
+      productController = TextEditingController(text: product.name);
 
   Product product;
   final TextEditingController quantityController;
   final TextEditingController priceController;
+  final TextEditingController productController;
 
   double get total {
     final quantity = double.tryParse(quantityController.text) ?? 0;
@@ -34,6 +36,7 @@ class _SaleLine {
   void dispose() {
     quantityController.dispose();
     priceController.dispose();
+    productController.dispose();
   }
 }
 
@@ -338,31 +341,44 @@ class _RecordSaleScreenState extends State<RecordSaleScreen> {
                   ),
               ],
             ),
-            DropdownButtonFormField<String>(
-              initialValue: line.product.id,
-              decoration: const InputDecoration(
-                labelText: 'Product',
-                prefixIcon: Icon(Icons.inventory_2_outlined),
-              ),
-              items: _repository.products
-                  .map(
-                    (product) => DropdownMenuItem(
-                      value: product.id,
-                      child: Text(product.name),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (value) {
-                if (value == null) return;
-                final product = _repository.products.firstWhere(
-                  (item) => item.id == value,
+            Autocomplete<Product>(
+              optionsBuilder: (value) {
+                final query = value.text.trim().toLowerCase();
+                if (query.isEmpty) {
+                  return _repository.products;
+                }
+                return _repository.products.where(
+                  (product) => product.name.toLowerCase().contains(query),
                 );
+              },
+              displayStringForOption: (product) => product.name,
+              onSelected: (product) {
                 setState(() {
                   line.product = product;
+                  line.productController.text = product.name;
                   line.priceController.text = product.sellingPrice
                       .toStringAsFixed(2);
                 });
               },
+              fieldViewBuilder:
+                  (
+                    context,
+                    textEditingController,
+                    focusNode,
+                    onFieldSubmitted,
+                  ) {
+                    textEditingController.text = line.productController.text;
+                    return TextFormField(
+                      controller: line.productController,
+                      focusNode: focusNode,
+                      decoration: const InputDecoration(
+                        labelText: 'Product',
+                        prefixIcon: Icon(Icons.inventory_2_outlined),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                      onFieldSubmitted: (_) => onFieldSubmitted(),
+                    );
+                  },
             ),
             const SizedBox(height: 12),
             Row(
@@ -390,6 +406,7 @@ class _RecordSaleScreenState extends State<RecordSaleScreen> {
                 Expanded(
                   child: TextFormField(
                     controller: line.priceController,
+                    readOnly: true,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
@@ -397,14 +414,6 @@ class _RecordSaleScreenState extends State<RecordSaleScreen> {
                       labelText: 'Price per item',
                       prefixText: 'P ',
                     ),
-                    onChanged: (_) => setState(() {}),
-                    validator: (value) {
-                      final price = double.tryParse(value ?? '');
-                      if (price == null || price <= 0) {
-                        return 'Enter a price above zero';
-                      }
-                      return null;
-                    },
                   ),
                 ),
               ],

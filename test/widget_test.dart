@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:sari2_app/main.dart';
 import 'package:sari2_app/data/store_repository.dart';
+import 'package:sari2_app/models/product.dart';
 import 'package:sari2_app/models/sale.dart';
 import 'package:sari2_app/models/stock_movement.dart';
 
@@ -92,13 +93,33 @@ void main() {
   testWidgets('saves a valid local sale', (WidgetTester tester) async {
     await tester.pumpWidget(const MaterialApp(home: RecordSaleScreen()));
 
-    await tester.enterText(find.byType(TextFormField).first, '2');
-    await tester.enterText(find.byType(TextFormField).last, '15.50');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Quantity'), '2');
     await tester.tap(find.text('Save sale'));
     await tester.pump();
 
     expect(find.text('Sale recorded locally.'), findsOneWidget);
-    expect(find.text('P31.00'), findsOneWidget);
+    expect(find.text('P110.00'), findsOneWidget);
+  });
+
+  testWidgets('allows searching products and keeps the product price fixed', (
+    WidgetTester tester,
+  ) async {
+    final repository = StoreRepository();
+    await tester.pumpWidget(
+      MaterialApp(home: RecordSaleScreen(repository: repository)),
+    );
+
+    final productField = find.widgetWithText(TextFormField, 'Product');
+    expect(productField, findsOneWidget);
+
+    await tester.enterText(productField, 'Rice');
+    await tester.pumpAndSettle();
+    expect(find.text('Rice (1 kg)'), findsWidgets);
+
+    expect(
+      find.widgetWithText(TextFormField, 'Price per item'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('combines multiple items in one utang transaction', (
@@ -114,21 +135,19 @@ void main() {
     await tester.tap(find.text('Add another item'));
     await tester.pump();
 
-    final fields = find.byType(TextFormField);
-    await tester.enterText(fields.at(0), '2');
-    await tester.enterText(fields.at(1), '10');
-    await tester.enterText(fields.at(2), '1');
-    await tester.enterText(fields.at(3), '5');
+    final quantityFields = find.widgetWithText(TextFormField, 'Quantity');
+    await tester.enterText(quantityFields.at(0), '2');
+    await tester.enterText(quantityFields.at(1), '1');
     await tester.pump();
 
-    expect(find.text('P25.00'), findsOneWidget);
+    expect(find.text('P165.00'), findsOneWidget);
 
     await tester.ensureVisible(find.text('Save sale'));
     await tester.tap(find.text('Save sale'));
     await tester.pump();
 
     expect(find.text('Sale recorded locally.'), findsOneWidget);
-    expect(repository.customers.single.balance, 25);
+    expect(repository.customers.single.balance, 165);
   });
 
   test('deducts stock only after validating the transaction', () {
