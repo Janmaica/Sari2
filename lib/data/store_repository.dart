@@ -269,6 +269,7 @@ class StoreRepository extends ChangeNotifier {
     required double sellingPrice,
     required int stock,
     required int lowStockThreshold,
+    String category = 'Groceries',
   }) {
     _products.add(
       Product(
@@ -278,7 +279,32 @@ class StoreRepository extends ChangeNotifier {
         sellingPrice: sellingPrice,
         stock: stock,
         lowStockThreshold: lowStockThreshold,
+        category: category,
       ),
+    );
+    notifyListeners();
+    unawaited(saveToDisk());
+  }
+
+  void updateProduct({
+    required Product product,
+    String? name,
+    double? capitalPrice,
+    double? sellingPrice,
+    int? stock,
+    int? lowStockThreshold,
+    String? category,
+  }) {
+    final index = _products.indexWhere((item) => item.id == product.id);
+    if (index == -1) return;
+
+    _products[index] = product.copyWith(
+      name: name,
+      capitalPrice: capitalPrice,
+      sellingPrice: sellingPrice,
+      stock: stock,
+      lowStockThreshold: lowStockThreshold,
+      category: category,
     );
     notifyListeners();
     unawaited(saveToDisk());
