@@ -463,6 +463,47 @@ void main() {
     expect(find.text('Paid in full'), findsOneWidget);
   });
 
+  testWidgets('edits a product category and price from inventory', (
+    WidgetTester tester,
+  ) async {
+    final repository = StoreRepository();
+    await tester.pumpWidget(
+      MaterialApp(home: InventoryScreen(repository: repository)),
+    );
+
+    await tester.tap(find.text('Rice (1 kg)'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Product name'),
+      'Rice (1 kg)',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Capital price'),
+      '52',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Selling price'),
+      '60',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Stock quantity'),
+      '10',
+    );
+    await tester.tap(find.text('Category'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Beverages'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Save product'));
+    await tester.tap(find.text('Save product'));
+    await tester.pumpAndSettle();
+
+    expect(repository.products.first.category, 'Beverages');
+    expect(repository.products.first.capitalPrice, 52);
+    expect(repository.products.first.sellingPrice, 60);
+    expect(repository.products.first.stock, 10);
+  });
+
   testWidgets('adds a product to inventory', (WidgetTester tester) async {
     await tester.pumpWidget(const MaterialApp(home: InventoryScreen()));
 

@@ -20,6 +20,15 @@ class InventoryScreen extends StatelessWidget {
     );
   }
 
+  void _showEditProductForm(BuildContext context, Product product) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) =>
+          _AddProductSheet(repository: _repository, product: product),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,6 +90,7 @@ class InventoryScreen extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 subtitle: Text(
+                  'Category: ${product.category}\n'
                   'Selling price: P${product.sellingPrice.toStringAsFixed(2)}\n'
                   'Capital price: P${product.capitalPrice.toStringAsFixed(2)}',
                 ),
@@ -110,7 +120,7 @@ class InventoryScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                onTap: () => _showStockAdjustment(context, product),
+                onTap: () => _showEditProductForm(context, product),
               ),
             );
           },
@@ -130,9 +140,10 @@ class InventoryScreen extends StatelessWidget {
 }
 
 class _AddProductSheet extends StatefulWidget {
-  const _AddProductSheet({required this.repository});
+  const _AddProductSheet({required this.repository, this.product});
 
   final StoreRepository repository;
+  final Product? product;
 
   @override
   State<_AddProductSheet> createState() => _AddProductSheetState();
@@ -140,11 +151,30 @@ class _AddProductSheet extends StatefulWidget {
 
 class _AddProductSheetState extends State<_AddProductSheet> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _capitalPriceController = TextEditingController();
-  final _sellingPriceController = TextEditingController();
-  final _stockController = TextEditingController(text: '0');
-  final _thresholdController = TextEditingController(text: '5');
+  late final TextEditingController _nameController;
+  late final TextEditingController _capitalPriceController;
+  late final TextEditingController _sellingPriceController;
+  late final TextEditingController _stockController;
+  late final TextEditingController _thresholdController;
+  String _category = 'Groceries';
+
+  @override
+  void initState() {
+    super.initState();
+    final product = widget.product;
+    _nameController = TextEditingController(text: product?.name ?? '');
+    _capitalPriceController = TextEditingController(
+      text: product?.capitalPrice.toStringAsFixed(2) ?? '',
+    );
+    _sellingPriceController = TextEditingController(
+      text: product?.sellingPrice.toStringAsFixed(2) ?? '',
+    );
+    _stockController = TextEditingController(text: '${product?.stock ?? 0}');
+    _thresholdController = TextEditingController(
+      text: '${product?.lowStockThreshold ?? 5}',
+    );
+    _category = product?.category ?? 'Groceries';
+  }
 
   @override
   void dispose() {
@@ -159,13 +189,33 @@ class _AddProductSheetState extends State<_AddProductSheet> {
   void _save() {
     if (!_formKey.currentState!.validate()) return;
 
-    widget.repository.addProduct(
-      name: _nameController.text.trim(),
-      capitalPrice: double.parse(_capitalPriceController.text),
-      sellingPrice: double.parse(_sellingPriceController.text),
-      stock: int.parse(_stockController.text),
-      lowStockThreshold: int.parse(_thresholdController.text),
-    );
+    final product = widget.product;
+    final name = _nameController.text.trim();
+    final capitalPrice = double.parse(_capitalPriceController.text);
+    final sellingPrice = double.parse(_sellingPriceController.text);
+    final stock = int.parse(_stockController.text);
+    final threshold = int.parse(_thresholdController.text);
+
+    if (product == null) {
+      widget.repository.addProduct(
+        name: name,
+        capitalPrice: capitalPrice,
+        sellingPrice: sellingPrice,
+        stock: stock,
+        lowStockThreshold: threshold,
+        category: _category,
+      );
+    } else {
+      widget.repository.updateProduct(
+        product: product,
+        name: name,
+        capitalPrice: capitalPrice,
+        sellingPrice: sellingPrice,
+        stock: stock,
+        lowStockThreshold: threshold,
+        category: _category,
+      );
+    }
     Navigator.of(context).pop();
   }
 
@@ -192,7 +242,7 @@ class _AddProductSheetState extends State<_AddProductSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Add product',
+                widget.product == null ? 'Add product' : 'Edit product',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: const Color(0xFF17372D),
                   fontWeight: FontWeight.w800,
@@ -229,6 +279,36 @@ class _AddProductSheetState extends State<_AddProductSheet> {
                   prefixText: 'P ',
                 ),
                 validator: _positiveNumber,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _category,
+                decoration: const InputDecoration(labelText: 'Category'),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'Groceries',
+                    child: Text('Groceries'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Beverages',
+                    child: Text('Beverages'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'School supplies',
+                    child: Text('School supplies'),
+                  ),
+                  DropdownMenuItem(value: 'Snacks', child: Text('Snacks')),
+                  DropdownMenuItem(
+                    value: 'Household',
+                    child: Text('Household'),
+                  ),
+                  DropdownMenuItem(value: 'Hygiene', child: Text('Hygiene')),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _category = value);
+                  }
+                },
               ),
               const SizedBox(height: 12),
               Row(
