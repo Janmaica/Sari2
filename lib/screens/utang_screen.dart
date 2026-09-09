@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/store_repository.dart';
 import '../models/customer.dart';
+import '../models/sale.dart';
 
 class UtangScreen extends StatelessWidget {
   const UtangScreen({super.key, this.repository});
@@ -153,6 +154,28 @@ class CustomerDetailScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 18),
+                Text(
+                  'Credited items',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: const Color(0xFF17372D),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: _CreditedItemsList(
+                    sales: repository.sales
+                        .where(
+                          (sale) =>
+                              sale.customerId == customer.id &&
+                              sale.saleType == SaleType.utang,
+                        )
+                        .toList()
+                        .reversed
+                        .toList(),
+                  ),
+                ),
+                const SizedBox(height: 18),
                 FilledButton.icon(
                   onPressed: () => _showAmountDialog(context, customer, false),
                   icon: const Icon(Icons.add_card_rounded),
@@ -171,6 +194,55 @@ class CustomerDetailScreen extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _CreditedItemsList extends StatelessWidget {
+  const _CreditedItemsList({required this.sales});
+
+  final List<Sale> sales;
+
+  @override
+  Widget build(BuildContext context) {
+    if (sales.isEmpty) {
+      return const Align(
+        alignment: Alignment.topLeft,
+        child: Text('No itemized credit sales yet.'),
+      );
+    }
+
+    return ListView.separated(
+      itemCount: sales.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final sale = sales[index];
+        final quantity = sale.quantity == sale.quantity.truncateToDouble()
+            ? sale.quantity.toInt().toString()
+            : sale.quantity.toStringAsFixed(2);
+        return Card(
+          margin: EdgeInsets.zero,
+          elevation: 0,
+          color: Colors.white,
+          child: ListTile(
+            leading: const Icon(
+              Icons.shopping_bag_outlined,
+              color: Color(0xFF156B4B),
+            ),
+            title: Text(
+              sale.productName,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: Text(
+              'Quantity: $quantity  |  P${sale.unitPrice.toStringAsFixed(2)} each',
+            ),
+            trailing: Text(
+              'P${sale.total.toStringAsFixed(2)}',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        );
+      },
     );
   }
 }

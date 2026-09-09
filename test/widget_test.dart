@@ -150,6 +150,33 @@ void main() {
     expect(repository.customers.single.balance, 165);
   });
 
+  testWidgets('shows credited items in the customer account', (
+    WidgetTester tester,
+  ) async {
+    final repository = StoreRepository();
+    final customer = repository.addCustomer(name: 'Maria');
+    final product = repository.products.first;
+    repository.recordTransaction(
+      items: [SaleDraft(product: product, quantity: 2, unitPrice: 55)],
+      saleType: SaleType.utang,
+      customer: customer,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CustomerDetailScreen(
+          customerId: customer.id,
+          repository: repository,
+        ),
+      ),
+    );
+
+    expect(find.text('Credited items'), findsOneWidget);
+    expect(find.text('Rice (1 kg)'), findsOneWidget);
+    expect(find.textContaining('Quantity: 2'), findsOneWidget);
+    expect(find.text('P110.00'), findsNWidgets(2));
+  });
+
   test('deducts stock only after validating the transaction', () {
     final repository = StoreRepository();
     final product = repository.products.first;
