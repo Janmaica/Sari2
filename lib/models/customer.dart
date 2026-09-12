@@ -13,12 +13,17 @@ class Customer {
   final String notes;
   final double balance;
 
-  Customer copyWith({double? balance}) {
+  Customer copyWith({
+    String? name,
+    String? contact,
+    String? notes,
+    double? balance,
+  }) {
     return Customer(
       id: id,
-      name: name,
-      contact: contact,
-      notes: notes,
+      name: name ?? this.name,
+      contact: contact ?? this.contact,
+      notes: notes ?? this.notes,
       balance: balance ?? this.balance,
     );
   }

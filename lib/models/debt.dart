@@ -30,22 +30,26 @@ class Payment {
   const Payment({
     required this.customerId,
     required this.amount,
+    required this.remainingBalance,
     required this.createdAt,
   });
 
   final String customerId;
   final double amount;
+  final double remainingBalance;
   final DateTime createdAt;
 
   Map<String, dynamic> toJson() => {
     'customerId': customerId,
     'amount': amount,
+    'remainingBalance': remainingBalance,
     'createdAt': createdAt.toIso8601String(),
   };
 
   factory Payment.fromJson(Map<String, dynamic> json) => Payment(
     customerId: json['customerId'] as String,
     amount: (json['amount'] as num).toDouble(),
+    remainingBalance: (json['remainingBalance'] as num? ?? 0).toDouble(),
     createdAt: DateTime.parse(json['createdAt'] as String),
   );
 }

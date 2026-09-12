@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../data/store_repository.dart';
 import '../models/customer.dart';
+import '../models/debt.dart';
 import '../models/sale.dart';
+import 'record_sale_screen.dart';
 
 class UtangScreen extends StatelessWidget {
   const UtangScreen({super.key, this.repository});
@@ -11,10 +13,11 @@ class UtangScreen extends StatelessWidget {
 
   StoreRepository get _repository => repository ?? StoreRepository.instance;
 
-  void _showAddCustomer(BuildContext context) {
-    showDialog<void>(
+  void _showCustomerManagement(BuildContext context) {
+    showModalBottomSheet<void>(
       context: context,
-      builder: (_) => _CustomerDialog(repository: _repository),
+      isScrollControlled: true,
+      builder: (_) => _CustomerManagementSheet(repository: _repository),
     );
   }
 
@@ -25,24 +28,29 @@ class UtangScreen extends StatelessWidget {
         title: const Text('Utang'),
         actions: [
           IconButton(
-            tooltip: 'Add customer',
-            onPressed: () => _showAddCustomer(context),
-            icon: const Icon(Icons.person_add_alt_1_rounded),
+            tooltip: 'Manage customers',
+            onPressed: () => _showCustomerManagement(context),
+            icon: const Icon(Icons.manage_accounts_outlined),
           ),
         ],
       ),
       body: ListenableBuilder(
         listenable: _repository,
         builder: (context, _) {
-          if (_repository.customers.isEmpty) {
-            return const Center(child: Text('No customers yet.'));
+          final debtors = _repository.customers
+              .where((customer) => customer.balance > 0)
+              .toList();
+          if (debtors.isEmpty) {
+            return const Center(
+              child: Text('No customers with outstanding debt.'),
+            );
           }
           return ListView.separated(
             padding: const EdgeInsets.all(20),
-            itemCount: _repository.customers.length,
+            itemCount: debtors.length,
             separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
-              final customer = _repository.customers[index];
+              final customer = debtors[index];
               return ListTile(
                 tileColor: Colors.white,
                 shape: RoundedRectangleBorder(
@@ -57,9 +65,7 @@ class UtangScreen extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 subtitle: Text(
-                  customer.balance == 0
-                      ? 'Paid in full'
-                      : 'Remaining balance: P${customer.balance.toStringAsFixed(2)}',
+                  'Remaining balance: P${customer.balance.toStringAsFixed(2)}',
                 ),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => Navigator.of(context).push(
@@ -176,10 +182,37 @@ class CustomerDetailScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 18),
+                Text(
+                  'Payment history',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: const Color(0xFF17372D),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 100,
+                  child: _PaymentHistoryList(
+                    payments: repository.payments
+                        .where((payment) => payment.customerId == customer.id)
+                        .toList()
+                        .reversed
+                        .toList(),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 FilledButton.icon(
-                  onPressed: () => _showAmountDialog(context, customer, false),
-                  icon: const Icon(Icons.add_card_rounded),
-                  label: const Text('Add debt'),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => RecordSaleScreen(
+                        repository: repository,
+                        initialSaleType: SaleType.utang,
+                        initialCustomerId: customer.id,
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.add_shopping_cart_rounded),
+                  label: const Text('Record another credit sale'),
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
@@ -234,7 +267,8 @@ class _CreditedItemsList extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
             subtitle: Text(
-              'Quantity: $quantity  |  P${sale.unitPrice.toStringAsFixed(2)} each',
+              'Quantity: $quantity  |  P${sale.unitPrice.toStringAsFixed(2)} each\n'
+              'Credited: ${_formatDateTime(sale.createdAt)}',
             ),
             trailing: Text(
               'P${sale.total.toStringAsFixed(2)}',
@@ -245,6 +279,46 @@ class _CreditedItemsList extends StatelessWidget {
       },
     );
   }
+}
+
+class _PaymentHistoryList extends StatelessWidget {
+  const _PaymentHistoryList({required this.payments});
+
+  final List<Payment> payments;
+
+  @override
+  Widget build(BuildContext context) {
+    if (payments.isEmpty) {
+      return const Align(
+        alignment: Alignment.topLeft,
+        child: Text('No payments recorded yet.'),
+      );
+    }
+    return ListView.separated(
+      itemCount: payments.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 6),
+      itemBuilder: (context, index) {
+        final payment = payments[index];
+        return ListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.payments_outlined),
+          title: Text('Paid P${payment.amount.toStringAsFixed(2)}'),
+          subtitle: Text(
+            '${_formatDateTime(payment.createdAt)}  |  Remaining: '
+            'P${payment.remainingBalance.toStringAsFixed(2)}',
+          ),
+        );
+      },
+    );
+  }
+}
+
+String _formatDateTime(DateTime value) {
+  final local = value.toLocal();
+  String twoDigits(int number) => number.toString().padLeft(2, '0');
+  return '${local.year}-${twoDigits(local.month)}-${twoDigits(local.day)} '
+      '${twoDigits(local.hour)}:${twoDigits(local.minute)}';
 }
 
 class _CustomerDialog extends StatefulWidget {
@@ -299,6 +373,170 @@ class _CustomerDialogState extends State<_CustomerDialog> {
               decoration: const InputDecoration(
                 labelText: 'Contact (optional)',
               ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(onPressed: _save, child: const Text('Save customer')),
+      ],
+    );
+  }
+}
+
+class _CustomerManagementSheet extends StatelessWidget {
+  const _CustomerManagementSheet({required this.repository});
+
+  final StoreRepository repository;
+
+  void _showForm(BuildContext context, [Customer? customer]) {
+    showDialog<void>(
+      context: context,
+      builder: (_) =>
+          _CustomerFormDialog(repository: repository, customer: customer),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+        child: ListenableBuilder(
+          listenable: repository,
+          builder: (context, _) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Customer management',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Add customer',
+                    onPressed: () => _showForm(context),
+                    icon: const Icon(Icons.person_add_alt_1_rounded),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (repository.customers.isEmpty)
+                const Text('No customers yet.')
+              else
+                ...repository.customers.map(
+                  (customer) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(customer.name),
+                    subtitle: Text(
+                      customer.contact.isEmpty
+                          ? 'No contact number'
+                          : customer.contact,
+                    ),
+                    trailing: Wrap(
+                      children: [
+                        IconButton(
+                          tooltip: 'Edit customer',
+                          onPressed: () => _showForm(context, customer),
+                          icon: const Icon(Icons.edit_outlined),
+                        ),
+                        IconButton(
+                          tooltip: 'Remove customer',
+                          onPressed: customer.balance > 0
+                              ? null
+                              : () => repository.deleteCustomer(customer),
+                          icon: const Icon(Icons.delete_outline),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CustomerFormDialog extends StatefulWidget {
+  const _CustomerFormDialog({required this.repository, this.customer});
+
+  final StoreRepository repository;
+  final Customer? customer;
+
+  @override
+  State<_CustomerFormDialog> createState() => _CustomerFormDialogState();
+}
+
+class _CustomerFormDialogState extends State<_CustomerFormDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameController;
+  late final TextEditingController _contactController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.customer?.name ?? '');
+    _contactController = TextEditingController(
+      text: widget.customer?.contact ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _contactController.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    if (!_formKey.currentState!.validate()) return;
+    String? error;
+    if (widget.customer == null) {
+      widget.repository.addCustomer(
+        name: _nameController.text.trim(),
+        contact: _contactController.text.trim(),
+      );
+    } else {
+      error = widget.repository.updateCustomer(
+        customer: widget.customer!,
+        name: _nameController.text,
+        contact: _contactController.text,
+      );
+    }
+    if (error != null) return;
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.customer == null ? 'Add customer' : 'Edit customer'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _nameController,
+              decoration: const InputDecoration(labelText: 'Customer name'),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Enter a customer name'
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _contactController,
+              decoration: const InputDecoration(labelText: 'Contact'),
             ),
           ],
         ),

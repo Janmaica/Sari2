@@ -177,6 +177,53 @@ void main() {
     expect(find.text('P110.00'), findsNWidgets(2));
   });
 
+  testWidgets('opens a customer credit sale from the utang account', (
+    WidgetTester tester,
+  ) async {
+    final repository = StoreRepository();
+    final customer = repository.addCustomer(name: 'Maria');
+    repository.addDebt(customer: customer, amount: 50);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CustomerDetailScreen(
+          customerId: customer.id,
+          repository: repository,
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Record another credit sale'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('New sale'), findsOneWidget);
+    expect(find.text('Utang'), findsOneWidget);
+    expect(find.text('Customer'), findsOneWidget);
+    expect(find.text('Maria'), findsOneWidget);
+  });
+
+  testWidgets('shows payment amount and remaining balance in history', (
+    WidgetTester tester,
+  ) async {
+    final repository = StoreRepository();
+    final customer = repository.addCustomer(name: 'Maria');
+    repository.addDebt(customer: customer, amount: 100);
+    repository.recordPayment(customer: repository.customers.single, amount: 40);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CustomerDetailScreen(
+          customerId: customer.id,
+          repository: repository,
+        ),
+      ),
+    );
+
+    expect(find.text('Payment history'), findsOneWidget);
+    expect(find.text('Paid P40.00'), findsOneWidget);
+    expect(find.textContaining('Remaining: P60.00'), findsOneWidget);
+  });
+
   test('deducts stock only after validating the transaction', () {
     final repository = StoreRepository();
     final product = repository.products.first;
@@ -322,7 +369,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Utang'), findsOneWidget);
-    expect(find.text('No customers yet.'), findsOneWidget);
+    expect(find.text('No customers with outstanding debt.'), findsOneWidget);
   });
 
   test('tracks store expenses', () {
@@ -488,12 +535,16 @@ void main() {
     expect(restoredRepository.expenses.single.name, 'Electric bill');
   });
 
-  testWidgets('adds an utang customer', (WidgetTester tester) async {
+  testWidgets('manages customers separately from outstanding utang', (
+    WidgetTester tester,
+  ) async {
     final repository = StoreRepository();
     await tester.pumpWidget(
       MaterialApp(home: UtangScreen(repository: repository)),
     );
 
+    await tester.tap(find.byTooltip('Manage customers'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Add customer'));
     await tester.pumpAndSettle();
     await tester.enterText(
@@ -503,8 +554,8 @@ void main() {
     await tester.tap(find.text('Save customer'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Juan'), findsOneWidget);
-    expect(find.text('Paid in full'), findsOneWidget);
+    expect(repository.customers.single.name, 'Juan');
+    expect(find.text('No customers with outstanding debt.'), findsOneWidget);
   });
 
   testWidgets('edits a product category and price from inventory', (

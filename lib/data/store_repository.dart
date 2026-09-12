@@ -489,6 +489,35 @@ class StoreRepository extends ChangeNotifier {
     return customer;
   }
 
+  String? updateCustomer({
+    required Customer customer,
+    required String name,
+    required String contact,
+    String notes = '',
+  }) {
+    if (name.trim().isEmpty) return 'Customer name is required';
+    final index = _customers.indexWhere((item) => item.id == customer.id);
+    if (index == -1) return 'Customer not found';
+    _customers[index] = customer.copyWith(
+      name: name.trim(),
+      contact: contact.trim(),
+      notes: notes.trim(),
+    );
+    notifyListeners();
+    unawaited(saveToDisk());
+    return null;
+  }
+
+  String? deleteCustomer(Customer customer) {
+    if (customer.balance > 0) {
+      return 'A customer with an outstanding balance cannot be removed';
+    }
+    _customers.removeWhere((item) => item.id == customer.id);
+    notifyListeners();
+    unawaited(saveToDisk());
+    return null;
+  }
+
   String? addDebt({required Customer customer, required double amount}) {
     if (amount <= 0) return 'Debt amount must be greater than zero';
     final index = _customers.indexWhere((item) => item.id == customer.id);
@@ -577,11 +606,13 @@ class StoreRepository extends ChangeNotifier {
       return 'Payment cannot be greater than the remaining balance';
     }
     final index = _customers.indexWhere((item) => item.id == customer.id);
-    _customers[index] = customer.copyWith(balance: customer.balance - amount);
+    final remainingBalance = customer.balance - amount;
+    _customers[index] = customer.copyWith(balance: remainingBalance);
     _payments.add(
       Payment(
         customerId: customer.id,
         amount: amount,
+        remainingBalance: remainingBalance,
         createdAt: DateTime.now(),
       ),
     );

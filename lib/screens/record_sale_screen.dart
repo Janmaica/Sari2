@@ -6,9 +6,16 @@ import '../models/product.dart';
 import '../models/sale.dart';
 
 class RecordSaleScreen extends StatefulWidget {
-  const RecordSaleScreen({super.key, this.repository});
+  const RecordSaleScreen({
+    super.key,
+    this.repository,
+    this.initialSaleType = SaleType.cash,
+    this.initialCustomerId,
+  });
 
   final StoreRepository? repository;
+  final SaleType initialSaleType;
+  final String? initialCustomerId;
 
   @override
   State<RecordSaleScreen> createState() => _RecordSaleScreenState();
@@ -44,7 +51,7 @@ class _RecordSaleScreenState extends State<RecordSaleScreen> {
   final _formKey = GlobalKey<FormState>();
   late final StoreRepository _repository;
   late final List<_SaleLine> _lines;
-  SaleType _saleType = SaleType.cash;
+  late SaleType _saleType;
   Customer? _selectedCustomer;
 
   double get _total => _lines.fold(0, (total, line) => total + line.total);
@@ -53,10 +60,16 @@ class _RecordSaleScreenState extends State<RecordSaleScreen> {
   void initState() {
     super.initState();
     _repository = widget.repository ?? StoreRepository.instance;
+    _saleType = widget.initialSaleType;
     _lines = [_SaleLine(_repository.products.first)];
-    _selectedCustomer = _repository.customers.isNotEmpty
-        ? _repository.customers.first
-        : null;
+    _selectedCustomer = widget.initialCustomerId == null
+        ? (_repository.customers.isNotEmpty
+              ? _repository.customers.first
+              : null)
+        : _repository.customers.cast<Customer?>().firstWhere(
+            (customer) => customer?.id == widget.initialCustomerId,
+            orElse: () => null,
+          );
   }
 
   @override
