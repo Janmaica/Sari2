@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../data/store_repository.dart';
 import '../widgets/brand_mark.dart';
 import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.repository});
+
+  final StoreRepository? repository;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -29,7 +32,9 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(builder: (_) => const DashboardScreen()),
+      MaterialPageRoute<void>(
+        builder: (_) => DashboardScreen(repository: widget.repository),
+      ),
     );
   }
 

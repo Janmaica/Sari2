@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'data/store_repository.dart';
 import 'screens/login_screen.dart';
 
 export 'screens/cash_flow_screen.dart';
@@ -14,12 +15,16 @@ export 'screens/sales_history_screen.dart';
 export 'screens/stock_history_screen.dart';
 export 'screens/utang_screen.dart';
 
-void main() {
-  runApp(const Sari2App());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final repository = await StoreRepository.loadFromDisk();
+  runApp(Sari2App(repository: repository));
 }
 
 class Sari2App extends StatelessWidget {
-  const Sari2App({super.key});
+  const Sari2App({super.key, this.repository});
+
+  final StoreRepository? repository;
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +58,7 @@ class Sari2App extends StatelessWidget {
           ),
         ),
       ),
-      home: const LoginScreen(),
+      home: LoginScreen(repository: repository),
     );
   }
 }
