@@ -238,38 +238,62 @@ class _RecordSaleScreenState extends State<RecordSaleScreen> {
                     OutlinedButton.icon(
                       onPressed: _showAddCustomerDialog,
                       icon: const Icon(Icons.person_add_alt_1_rounded),
-                      label: const Text('Add customer for utang'),
+                      label: const Text('Add customer for this credit sale'),
                     )
-                  else
-                    DropdownButtonFormField<String>(
-                      value: _selectedCustomer?.id,
-                      decoration: const InputDecoration(
-                        labelText: 'Customer',
-                        prefixIcon: Icon(Icons.person_outline),
-                      ),
-                      items: _repository.customers
-                          .map(
-                            (customer) => DropdownMenuItem(
-                              value: customer.id,
-                              child: Text(customer.name),
+                  else ...[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: _selectedCustomer?.id,
+                            decoration: const InputDecoration(
+                              labelText: 'Customer',
+                              prefixIcon: Icon(Icons.person_outline),
                             ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value == null) return;
-                        setState(() {
-                          _selectedCustomer = _repository.customers.firstWhere(
-                            (customer) => customer.id == value,
-                          );
-                        });
-                      },
-                      validator: (value) {
-                        if (_saleType == SaleType.utang && value == null) {
-                          return 'Select a customer';
-                        }
-                        return null;
-                      },
+                            items: _repository.customers
+                                .map(
+                                  (customer) => DropdownMenuItem(
+                                    value: customer.id,
+                                    child: Text(customer.name),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              if (value == null) return;
+                              setState(() {
+                                _selectedCustomer = _repository.customers
+                                    .firstWhere(
+                                      (customer) => customer.id == value,
+                                    );
+                              });
+                            },
+                            validator: (value) {
+                              if (_saleType == SaleType.utang &&
+                                  value == null) {
+                                return 'Select a customer';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: IconButton(
+                            tooltip: 'Add customer',
+                            onPressed: _showAddCustomerDialog,
+                            icon: const Icon(Icons.person_add_alt_1_rounded),
+                          ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Choose an existing customer or add a new one.',
+                      style: TextStyle(color: Color(0xFF68736D)),
+                    ),
+                  ],
                 ],
                 const SizedBox(height: 24),
                 ..._lines.asMap().entries.map(

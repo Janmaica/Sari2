@@ -122,6 +122,36 @@ void main() {
     );
   });
 
+  testWidgets('adds a new customer while existing utang customers exist', (
+    WidgetTester tester,
+  ) async {
+    final repository = StoreRepository();
+    repository.addCustomer(name: 'Existing debtor');
+    await tester.pumpWidget(
+      MaterialApp(home: RecordSaleScreen(repository: repository)),
+    );
+
+    await tester.tap(find.text('Utang'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Add customer'));
+    await tester.pumpAndSettle();
+
+    final customerNameField = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.labelText == 'Customer name',
+    );
+    await tester.enterText(customerNameField, 'New customer');
+    await tester.tap(find.text('Save customer'));
+    await tester.pumpAndSettle();
+
+    expect(
+      repository.customers.map((customer) => customer.name),
+      contains('New customer'),
+    );
+    expect(find.text('New customer'), findsOneWidget);
+  });
+
   testWidgets('combines multiple items in one utang transaction', (
     WidgetTester tester,
   ) async {
