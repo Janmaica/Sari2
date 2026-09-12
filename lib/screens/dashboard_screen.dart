@@ -82,6 +82,14 @@ class DashboardScreen extends StatelessWidget {
                         value: '${_repository.lowStockCount}',
                         icon: Icons.inventory_2_outlined,
                         color: Color(0xFFC46A16),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => InventoryScreen(
+                              repository: _repository,
+                              initialFilter: InventoryFilter.lowStock,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -219,12 +227,14 @@ class _SummaryCard extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.color,
+    this.onTap,
   });
 
   final String label;
   final String value;
   final IconData icon;
   final Color color;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -233,23 +243,27 @@ class _SummaryCard extends StatelessWidget {
       elevation: 0,
       color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color),
-            const SizedBox(height: 14),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: const Color(0xFF17372D),
-                fontWeight: FontWeight.w800,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: color),
+              const SizedBox(height: 14),
+              Text(
+                value,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: const Color(0xFF17372D),
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(label, style: const TextStyle(color: Color(0xFF68736D))),
-          ],
+              const SizedBox(height: 4),
+              Text(label, style: const TextStyle(color: Color(0xFF68736D))),
+            ],
+          ),
         ),
       ),
     );

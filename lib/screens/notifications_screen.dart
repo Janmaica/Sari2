@@ -14,8 +14,8 @@ class NotificationsScreen extends StatelessWidget {
     final alerts = <String>[];
 
     for (final product in _repository.products) {
-      if (product.isLowStock) {
-        alerts.add('${product.name} is low stock.');
+      if (product.isOutOfStock) {
+        alerts.add('${product.name} is out of stock.');
       }
     }
 
@@ -47,11 +47,11 @@ class NotificationsScreen extends StatelessWidget {
                 color: Colors.white,
                 child: ListTile(
                   leading: Icon(
-                    alert.contains('low stock')
-                        ? Icons.warning_amber_rounded
+                    alert.contains('out of stock')
+                        ? Icons.remove_shopping_cart_outlined
                         : Icons.account_balance_wallet_outlined,
-                    color: alert.contains('low stock')
-                        ? const Color(0xFFC46A16)
+                    color: alert.contains('out of stock')
+                        ? const Color(0xFFB3261E)
                         : const Color(0xFF156B4B),
                   ),
                   title: Text(alert),

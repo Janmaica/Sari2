@@ -356,7 +356,7 @@ void main() {
     final repository = StoreRepository();
     repository.adjustStock(
       product: repository.products.first,
-      quantity: 16,
+      quantity: 18,
       type: StockMovementType.lost,
       reason: 'Lost',
     );
@@ -368,8 +368,25 @@ void main() {
     );
 
     expect(find.text('Notifications'), findsOneWidget);
-    expect(find.textContaining('low stock'), findsWidgets);
+    expect(find.textContaining('out of stock'), findsOneWidget);
+    expect(find.textContaining('low stock'), findsNothing);
     expect(find.textContaining('owes'), findsOneWidget);
+  });
+
+  testWidgets('opens low-stock products from the dashboard card', (
+    WidgetTester tester,
+  ) async {
+    final repository = StoreRepository();
+    await tester.pumpWidget(
+      MaterialApp(home: DashboardScreen(repository: repository)),
+    );
+
+    await tester.tap(find.text('Low-stock items'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Inventory'), findsOneWidget);
+    expect(find.text('Instant noodles'), findsOneWidget);
+    expect(find.text('Rice (1 kg)'), findsNothing);
   });
 
   testWidgets('shows sales history for recent transactions', (

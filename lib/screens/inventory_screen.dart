@@ -5,10 +5,13 @@ import '../models/product.dart';
 import '../models/stock_movement.dart';
 import 'stock_history_screen.dart';
 
+enum InventoryFilter { all, lowStock }
+
 class InventoryScreen extends StatefulWidget {
-  const InventoryScreen({super.key, this.repository});
+  const InventoryScreen({super.key, this.repository, this.initialFilter});
 
   final StoreRepository? repository;
+  final InventoryFilter? initialFilter;
 
   @override
   State<InventoryScreen> createState() => _InventoryScreenState();
@@ -26,6 +29,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
   ];
 
   String _selectedCategory = 'All';
+
+  InventoryFilter get _filter => widget.initialFilter ?? InventoryFilter.all;
 
   StoreRepository get _repository =>
       widget.repository ?? StoreRepository.instance;
@@ -77,6 +82,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
               : _repository.products
                     .where((product) => product.category == _selectedCategory)
                     .toList();
+          final visibleProducts = _filter == InventoryFilter.lowStock
+              ? products.where((product) => product.isLowStock).toList()
+              : products;
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
@@ -108,15 +116,19 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 ),
               ),
               const SizedBox(height: 18),
-              if (products.isEmpty)
+              if (visibleProducts.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 40),
                   child: Center(
-                    child: Text('No products in $_selectedCategory.'),
+                    child: Text(
+                      _filter == InventoryFilter.lowStock
+                          ? 'No low-stock products.'
+                          : 'No products in $_selectedCategory.',
+                    ),
                   ),
                 )
               else
-                ...products.map((product) {
+                ...visibleProducts.map((product) {
                   return Card(
                     margin: EdgeInsets.zero,
                     elevation: 0,
