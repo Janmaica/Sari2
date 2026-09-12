@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'local_database.dart';
 import '../models/product.dart';
 import '../models/purchase.dart';
 import '../models/sale.dart';
@@ -16,6 +18,9 @@ class StoreRepository extends ChangeNotifier {
   StoreRepository();
 
   static const _storageKey = 'sari2_store_state';
+
+  static bool get _isFlutterTest =>
+      Platform.environment['FLUTTER_TEST'] == 'true';
 
   static final instance = StoreRepository();
 
@@ -191,16 +196,29 @@ class StoreRepository extends ChangeNotifier {
   }
 
   static Future<StoreRepository> loadFromDisk() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_storageKey);
     final repository = StoreRepository();
+    Map<String, dynamic>? decoded;
 
-    if (raw == null || raw.isEmpty) {
-      return repository;
+    final databaseSnapshot = _isFlutterTest
+        ? null
+        : await LocalDatabase.instance.readSnapshot();
+    if (databaseSnapshot != null) {
+      decoded = databaseSnapshot;
+    } else {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_storageKey);
+      if (raw == null || raw.isEmpty) {
+        return repository;
+      }
+
+      try {
+        decoded = jsonDecode(raw) as Map<String, dynamic>;
+      } catch (_) {
+        return repository;
+      }
     }
 
     try {
-      final decoded = jsonDecode(raw) as Map<String, dynamic>;
       repository._products.clear();
       repository._customers.clear();
       repository._sales.clear();
@@ -247,14 +265,20 @@ class StoreRepository extends ChangeNotifier {
       return repository;
     }
 
+    if (databaseSnapshot == null) {
+      await repository.saveToDisk();
+    }
     repository.notifyListeners();
     return repository;
   }
 
   Future<void> saveToDisk() async {
-    final prefs = await SharedPreferences.getInstance();
-    final payload = jsonEncode(toBackupJson());
-    await prefs.setString(_storageKey, payload);
+    if (_isFlutterTest) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_storageKey, jsonEncode(toBackupJson()));
+      return;
+    }
+    await LocalDatabase.instance.writeSnapshot(toBackupJson());
   }
 
   int get lowStockCount =>
